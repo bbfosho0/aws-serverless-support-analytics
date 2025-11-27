@@ -16,7 +16,8 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 1. **Create & activate a Python virtual environment, then install backend deps with `pip`**
 
   ```powershell
-  python -m venv .venv
+  winget install -e --id Python.Python.3.11
+  python -3.11 -m venv .venv
   .\.venv\Scripts\Activate.ps1
   pip install --upgrade pip
   pip install -r requirements.txt

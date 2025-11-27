@@ -1,0 +1,5 @@
+/.venv
+/backend/app/tests/contract/__pycache__
+/backend/app/tests/integration/__pycache__
+/backend/app/tests/unit/__pycache__
+/tests/__pycache__
