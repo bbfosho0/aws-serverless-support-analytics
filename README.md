@@ -1,160 +1,364 @@
-# Customer Support Calls Analytics – Local-First Pipeline
+# AWS Serverless Support Analytics (Local-First Simulation)
 
-A cost-friendly analytics sandbox that simulates customer support call logs, cleans them locally (mirroring our future AWS Glue logic), stores the curated result as Parquet, and visualizes insights through a Streamlit dashboard. Everything in this repository runs locally by default so you can iterate without AWS credentials; the AWS sections below describe the roadmap.
+_A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Next.js stack while running entirely on your laptop. The backend reads ETL artifacts in `data/` to emulate an S3 lakehouse, exposes typed APIs through FastAPI, and the frontend consumes those APIs via Next.js dashboards—ensuring a seamless later migration to managed AWS services._
 
-> **Scope note:** Only the local workflow (`scripts/generate_parquet.py` + `visualization/streamlit_app.py`) ships today. The Glue ETL and infrastructure directories referenced in the roadmap are placeholders.
+> Architectural details originate from [FrontArc.md](FrontArc.md) (Next.js blueprint) and [BackArc.md](BackArc.md) (FastAPI blueprint). This README focuses on day-to-day development aligned with those plans.
 
-![Architecture diagram placeholder](assets/architecture_diagram.png)
+## Quick Start (pip + npm)
 
-## Quickstart
+1. **Clone the repo**
 
-1. **Create and activate a virtualenv**
+  ```powershell
+  git clone https://github.com/bbfosho0/aws-serverless-support-analytics.git
+  cd aws-serverless-support-analytics
+  ```
 
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # Windows: .\\.venv\\Scripts\\Activate.ps1
-    ```
+1. **Create & activate a Python virtual environment, then install backend deps with `pip`**
 
-1. **Install dependencies**
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install --upgrade pip
+  pip install -r requirements.txt
+  pip install -r backend/requirements.txt
+  ```
 
-    ```bash
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    ```
+1. **Generate sample Parquet + manifest assets (simulated Glue job)**
 
-1. **Regenerate curated data whenever raw files change**
+  ```powershell
+  python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
+  ```
 
-    ```bash
-    python scripts/generate_parquet.py \\
-        --calls data/sample_calls.json \\
-        --agents data/agents.csv \\
-        --output data/cleaned_calls.parquet \\
-        --manifest data/manifest.json
-    ```
+1. **Run the FastAPI backend**
 
-    CLI flags are optional; omit them to use the defaults shown above.
+  ```powershell
+  cd backend
+  uvicorn app.main:app --reload --port 8000
+  ```
 
-1. **Preview the dashboard**
+1. **Install frontend dependencies with `npm` and start Next.js**
 
-    ```bash
-    streamlit run visualization/streamlit_app.py
-    ```
+  ```powershell
+  cd ../frontend
+  npm install
+  npm run dev -- --port 3000
+  ```
 
-1. **Run automated tests**
+  Visit `http://localhost:3000/dashboard` (frontend) and `http://localhost:8000/api/healthz` (backend health) to confirm everything is running. You can swap `npm` for `pnpm` if desired.
 
-    ```bash
-    pytest
-    ```
 
-    Tests currently cover the ETL + manifest helpers (`tests/test_etl.py`, `tests/test_manifest.py`). Streamlit coverage is manual for now.
+## Table of Contents
 
-## Repository Layout
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Key Features](#key-features)
+- [Usage & API Examples](#usage--api-examples)
+- [Development Workflow](#development-workflow)
+- [Coding Standards](#coding-standards)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
-```text
-aws-serverless-support-analytics/
-├── data/
-│   ├── agents.csv                # Agent lookup table (hand-authored)
-│   ├── manifest.json             # Updated by scripts/generate_parquet.py
-│   ├── sample_calls.json         # Line-delimited JSON with synthetic calls
-│   └── cleaned_calls.parquet     # Generated output consumed by Streamlit
-├── scripts/
-│   └── generate_parquet.py       # CLI wrapper around support_analytics.etl
-├── support_analytics/
-│   ├── etl.py                    # Load + clean helpers shared by CLI/tests
-│   └── manifest.py               # Manifest hashing/read/write utilities
-├── visualization/
-│   ├── streamlit_app.py          # Entry point
-│   ├── data_loader.py            # Cached Parquet reader using manifest hash
-│   ├── filters.py                # Session-state friendly sidebar filters
-│   ├── charts.py                 # Plotly/Altair charts + tables
-│   ├── labels.py                 # Human-friendly label helpers
-│   └── styles.py                 # Global CSS + layout constants
-├── tests/
-│   ├── test_etl.py               # Validates derived columns & filtering
-│   └── test_manifest.py          # Ensures manifest hashing/updates work
-└── requirements.txt              # pandas, pyarrow, streamlit, plotly, altair, pytest, etc.
+## Technology Stack
+
+| Layer | Tooling |
+| --- | --- |
+| **Frontend** | Next.js (App Router, React 18, TypeScript), Tailwind CSS, shadcn/ui (Radix UI), TanStack Query & Table, Zustand, Nivo + Recharts, framer-motion, Storybook + Vitest + Playwright |
+| **Backend** | FastAPI, Pydantic v2, Uvicorn, Polars/Pandas for Parquet reads, Python BaseSettings, JWT auth stub, structlog, pytest, Ruff, mypy |
+| **Data & ETL** | `support_analytics/etl.py`, `scripts/generate_parquet.py`, Parquet + JSON manifest artifacts, optional Redis cache, future S3fs + boto3 adapters |
+| **Infrastructure Targets** | Local filesystem today; future-ready for AWS S3 data lake, AWS Glue crawlers, Fargate/App Runner deployment, OpenAPI-driven client generation via `openapi-typescript` |
+| **Tooling & DX** | pnpm, uv/poetry (or pip), Prettier + ESLint, Husky, Thunder Client, VS Code Tailwind/TS/Ruff extensions |
+
+## Architecture
+
+The solution pairs a typed FastAPI backend with a streaming-first Next.js frontend to simulate an AWS-native analytics workflow without cloud dependencies.
+
+```
+┌────────────┐      ETL (Python)       ┌──────────────┐       REST + OpenAPI       ┌─────────────┐
+│ data/ raw  │ ──▶ generate_parquet ▶ │ Parquet +    │ ──▶ FastAPI Routers ──▶ TS │ Next.js App │
+│ CSV / JSON │      scripts/          │ manifest.json│      (calls, agents,       │ (Dashboards)│
+└────────────┘                         └──────────────┘      metrics, settings)     └─────────────┘
+                                        ▲                     │          ▲
+                                        │ Pydantic models     │          │ TanStack Query hooks
+                                        ▼                     ▼          │ w/ generated clients
+                                   Future AWS: S3 bucket + Glue catalog  │
 ```
 
-## Data Schema & Contract
+1. **Data flow** – `support_analytics.etl` normalizes contact-center data into `data/cleaned_calls.parquet` and `data/manifest.json`, emulating an AWS Glue ETL output stored in S3.
+2. **Backend** – FastAPI loads those artifacts via repositories (`parquet_repo.py`, `manifest_repo.py`), layers business logic in services (`calls.py`, `metrics.py`, `agents.py`), and exposes versioned REST endpoints plus OpenAPI metadata.
+3. **Frontend** – Next.js App Router renders dashboards using TanStack Query hooks that call OpenAPI-generated clients (`src/lib/api/generated`). Tailwind + shadcn/ui supply the design system, and Zustand controls local UI state.
+4. **Future S3/Glue** – Switching the backend to AWS is a config flip (`DATA_SOURCE=s3`), keeping the frontend unchanged thanks to strong typing and consistent routes.
 
-`data/cleaned_calls.parquet` must contain the columns below for the dashboard to function:
+## Getting Started
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `call_id` | string | Primary identifier |
-| `agent_id`, `agent_name`, `region` | string | Enriched from `agents.csv` |
-| `customer_id` | string | Raw input field |
-| `start_time`, `end_time` | timezone-aware datetime (UTC) | Naive timestamps will break filters |
-| `call_duration_minutes` | float | Rounded to two decimals |
-| `issue_type`, `resolution`, `rating` | categorical/numeric | Used by charts & filters |
-| `call_date` | date | Derived date part of `start_time` |
-| `hour_of_day` | int | Derived hour (0–23) used by histograms |
+### 1. Prerequisites
 
-The ETL drops any row with missing timestamps or non-positive durations to keep downstream metrics clean.
+- Node.js 20+ with `pnpm` (or `npm` if you prefer)
+- Python 3.11+
+- [`uv`](https://github.com/astral-sh/uv) for painless virtualenv + dependency management (alternatively use `python -m venv` + `pip`)
+- Git, VS Code, and the Parquet dependencies already pinned in `requirements.txt`
 
-## Local Pipeline Details
+### 2. Clone & bootstrap
 
-### Input data
+```powershell
+cd C:\Users\Yoshi\Documents\GitHub
+git clone https://github.com/bbfosho0/aws-serverless-support-analytics.git
+cd aws-serverless-support-analytics
+```
 
-- `data/sample_calls.json`: line-delimited JSON with realistic support call samples. Edit this file to simulate new scenarios.
-- `data/agents.csv`: small lookup table containing `agent_id`, `agent_name`, and `region`.
+### 3. Install Python dependencies with uv
 
-### `scripts/generate_parquet.py`
+```powershell
+uv venv --python 3.11
+.\.venv\Scripts\Activate.ps1
+uv pip install -r requirements.txt          # shared ETL + test deps
+uv pip install -r backend/requirements.txt   # FastAPI-specific deps
+```
+> Prefer `pip install -r ...` if you are not using `uv`.
 
-1. Parses CLI arguments (customizable paths for calls, agents, output, manifest).
-2. Delegates to `support_analytics.etl` for loading/cleaning.
-3. Writes `cleaned_calls.parquet` and updates `manifest.json` via `support_analytics.manifest`.
+### 4. Generate local ETL artifacts (simulated Glue job)
 
-### `support_analytics.etl`
+```powershell
+python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
+```
+This placeholder logs the intended transformation and keeps folder wiring intact until real ETL logic lands.
 
-- `load_calls(path)` and `load_agents(path)` wrap pandas readers with validation.
-- `clean_calls(calls_df, agents_df)` performs:
-  - UTC conversion for `start_time`/`end_time`.
-  - Duration calculation, rounding, and anomaly filtering (`duration <= 0`, missing timestamps).
-  - Agent join, derived `call_date` and `hour_of_day`, column ordering.
-- Shared between the CLI and pytest suite to guarantee parity.
+### 5. Configure environment variables
 
-### `support_analytics.manifest`
+Create `.env` (backend) and `.env.local` (frontend) using the snippets below:
 
-- `read_manifest(path)` and `write_manifest(path, payload)` centralize JSON handling.
-- `manifest_hash(manifest)` feeds Streamlit caching so data reloads only when Parquet metadata changes.
-- `update_cleaned_calls_manifest(output_path, manifest_path)` stores `file_mtime`, `file_size`, and a sha256 hash after each ETL run, ensuring the dashboard knows when to invalidate its cache.
+```ini
+# backend/.env
+APP_ENV=local
+DATA_SOURCE=local
+PARQUET_PATH=data/cleaned_calls.parquet
+MANIFEST_PATH=data/manifest.json
+SECRET_KEY=dev-secret
+ENABLE_REFRESH_ENDPOINT=true
+CORS_ORIGINS=http://localhost:3000
+```
 
-## Streamlit Dashboard (Local Preview)
+```ini
+# frontend/.env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_DEFAULT_TIME_RANGE=30d
+```
 
-`visualization/streamlit_app.py` stitches together several focused modules:
+### 6. Start the FastAPI backend
 
-- `data_loader.py`: reads `data/cleaned_calls.parquet`, enforces UTC, computes friendly display columns, and caches the frame using `manifest_hash` as the cache key.
-- `filters.py`: manages sidebar widgets, session-state defaults, presets, and reset workflow. Filtering happens on the server-side DataFrame, not inside Plotly.
-- `charts.py`: contains KPI metrics, agent rankers, duration histograms, issue breakdowns, and time-series plots (Plotly Express + Altair). When the frame is empty, each chart shows a friendly “no data” state.
-- `styles.py` and `labels.py`: keep CSS tweaks, color constants, and human-readable label mappings out of the entry file.
+```powershell
+.\.venv\Scripts\Activate.ps1
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+Verify the simulation:
+```bash
+curl http://localhost:8000/api/healthz
+```
 
-### Troubleshooting & Tips
+### 7. Start the Next.js frontend
 
-- **`FileNotFoundError: data/cleaned_calls.parquet`** – run `python scripts/generate_parquet.py` to refresh the curated dataset.
-- **Stale metrics after editing raw JSON** – rerun the generator script, then restart `streamlit run ...` to pick up the new manifest hash.
-- **Pyright or IDE import warnings** – confirm the active interpreter matches `.venv` and reinstall with `pip install -r requirements.txt`.
-- **Manifest reset** – delete `data/manifest.json` if it becomes corrupt; the next ETL run will recreate it.
+```powershell
+cd frontend
+pnpm install    # or: npm install
+pnpm dev --port 3000
+```
+Navigate to `http://localhost:3000/dashboard` to see local dashboards backed by the simulated AWS pipeline.
 
-## Testing & Quality
+### 8. (Optional) Regenerate typed API clients
 
-- `pytest` runs fast unit tests for ETL cleaning logic and manifest hashing. Extend `tests/` with fixtures under `tests/fixtures/` if you add more coverage.
-- Manual Streamlit smoke test: regenerate data, launch the dashboard, filter by region/issue, and click “Reset all” to ensure session-state wiring still works.
+```bash
+cd frontend
+pnpm api:generate   # runs openapi-typescript against http://localhost:8000/openapi.json
+pnpm lint && pnpm test
+```
+Run this after any FastAPI schema change so the React hooks stay in sync.
 
-## Roadmap: AWS Glue & S3 (Future Work)
+## Project Structure
 
-The long-term plan is to mirror the local pipeline with managed AWS services:
+```
+aws-serverless-support-analytics/
+├── plan.md                      # Alignment checklist documenting the scaffold goals
+├── FrontArc.md                 # Frontend architecture blueprint (authoritative UI guide)
+├── BackArc.md                  # Backend architecture blueprint (authoritative API guide)
+├── data/                       # Local-first "S3" artifacts (CSV sources, manifest, sample JSON)
+├── scripts/
+│   └── generate_parquet.py     # Logs the intended Glue ETL transformation for now
+├── support_analytics/          # Python ETL helper package (descriptive stubs today)
+├── backend/
+│   ├── requirements.txt        # FastAPI dependency pinning
+│   └── app/
+│       ├── main.py             # FastAPI app wiring all routers
+│       ├── core/               # Settings + security helpers
+│       ├── models/, schemas/   # Pydantic contracts
+│       ├── services/, repos/   # Business logic + IO stubs
+│       ├── routers/            # Agents, calls, metrics, settings, auth
+│       └── tests/              # unit / integration / contract placeholders
+├── frontend/
+│   ├── package.json            # Next.js + Tailwind + TanStack Query setup
+│   ├── src/app/                # App Router routes (dashboard, calls, agents, settings)
+│   ├── src/components/         # Layout, charts, tables, filters, feedback, ui stubs
+│   ├── src/features/           # Feature modules per blueprint section
+│   ├── src/lib/                # api/, state/, viz/, utils/, constants/
+│   ├── src/providers/          # Theme/Query/Auth providers
+│   ├── src/styles/             # globals.css, themes.css, typography.css
+│   └── src/tests/              # Vitest + Playwright placeholders
+├── visualization/              # Legacy Streamlit artifacts (reference for data viz requirements)
+├── tests/                      # Pytest suites for ETL helpers (support_analytics/*)
+└── README.md
+```
+(See [FrontArc.md](FrontArc.md) and [BackArc.md](BackArc.md) for deeper per-directory notes.)
 
-1. **S3 layout** – `raw_calls/`, `reference_data/`, and `cleaned_calls/` prefixes inside a bucket such as `support-calls-data`.
-2. **Glue crawlers** – catalog the raw JSON calls and `agents.csv` lookup for PySpark consumption.
-3. **Glue job (`etl/support_calls_etl.py`)** – implements the same transformations as `support_analytics.etl` using `GlueContext`, producing partitioned Parquet in `cleaned_calls/`.
-4. **Manifest on S3** – store `manifest.json` alongside the cleaned outputs so the Streamlit app can fetch only new files.
-5. **Streamlit Cloud deployment** – host `visualization/streamlit_app.py`, configure AWS creds via secrets, and reuse the same caching logic. No Athena queries are required because we read Parquet directly via `s3fs`.
+## Placeholder Scaffolding Strategy
+- **Descriptive Python stubs** – `support_analytics/`, `backend/app/services/*`, and `scripts/generate_parquet.py` log their intent so FastAPI contracts can be developed before real ETL logic exists.
+- **Frontend skeletons** – Every route, feature module, and provider from `FrontArc.md` has a matching component that renders placeholder copy, keeping routing/API imports stable for future work.
+- **Testing hooks** – Pytest, Vitest, and Playwright directories already exist with smoke tests so CI wiring can begin immediately.
+- **Documentation parity** – `plan.md` plus this README ensure the documented structure and the filesystem can stay in sync as real implementations replace the placeholders.
 
-These items remain roadmap notes; contributions toward the AWS pieces are welcome once the local workflow stabilizes.
+## Key Features
+- **Local AWS simulation** – Parquet + manifest files emulate S3/Glue outputs; switching to real AWS storage later is a config-only change.
+- **Typed FastAPI layer** – Routers for calls, agents, metrics, settings, health, and auth stub share Pydantic models across services.
+- **Next.js dashboards** – App Router layouts, KPI cards, charts (Nivo/Recharts), and TanStack Table explorer deliver modern UX.
+- **Extensible design system** – Tailwind tokens, shadcn/ui primitives, and Radix-driven accessibility guidelines.
+- **Query-driven data layer** – TanStack Query hooks encapsulate caching, streaming, and optimistic updates tied to generated OpenAPI clients.
+- **Operational insights** – Settings page surfaces manifest details, manual refresh button, and ETL health checks.
+- **AWS-ready workflow** – Config toggles for `DATA_SOURCE=s3`, optional Redis cache, and OpenTelemetry hooks keep the stack cloud-ready.
 
-## Assets
+## Usage & API Examples
 
-Dashboard screenshots and architecture diagrams can live under `assets/`. The placeholder image reference at the top will begin working once `assets/architecture_diagram.png` is added.
+### 1. Regenerate ETL artifacts & refresh manifest
+```bash
+python scripts/generate_parquet.py --input data/sample_calls.json --output data/cleaned_calls.parquet
+curl -X POST http://localhost:8000/api/settings/refresh \
+  -H "Authorization: Bearer <admin-jwt>"
+```
 
+### 2. Start backend + frontend together (PowerShell)
+```powershell
+Start-Job { .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload }
+Start-Job { cd frontend; pnpm dev }
+```
 
+### 3. Generate OpenAPI clients for the frontend
+```bash
+make openapi           # backend exports openapi.json
+cd frontend
+pnpm api:generate      # regenerates src/lib/api/generated
+```
+
+### 4. REST API reference (local simulation)
+| Endpoint | Method | Description | Sample |
+| --- | --- | --- | --- |
+| `/api/calls` | GET | Paginated, filterable call records from Parquet | `curl "http://localhost:8000/api/calls?page=1&per_page=50&region=NA"` |
+| `/api/calls/{id}` | GET | Detailed call payload (timeline, notes, derived metrics) | `curl http://localhost:8000/api/calls/12345` |
+| `/api/agents` | GET | Agent leaderboard aggregations | `curl http://localhost:8000/api/agents?sort=rating` |
+| `/api/metrics` | GET | KPI snapshots + time-series arrays | `curl "http://localhost:8000/api/metrics?range=30d"` |
+| `/api/settings/manifest` | GET | Manifest diagnostics (hash, updated_at, file size) | `curl http://localhost:8000/api/settings/manifest` |
+| `/api/auth/sign-in` | POST | Auth stub issuing JWTs for local dev | `curl -X POST http://localhost:8000/api/auth/sign-in -d '{"username":"admin","password":"dev"}' -H "Content-Type: application/json"` |
+
+**Sample `/api/calls` response**
+```json
+{
+  "data": [
+    {
+      "id": "call_123",
+      "agent_id": "a-17",
+      "customer_region": "NA",
+      "issue_type": "Billing",
+      "duration_seconds": 612,
+      "resolution_status": "Resolved",
+      "started_at": "2024-11-10T14:32:00Z",
+      "ended_at": "2024-11-10T14:42:12Z",
+      "derived": {
+        "duration_label": "10m 12s",
+        "first_response_sla_met": true
+      }
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 50,
+    "total": 1845
+  },
+  "links": {
+    "next": "/api/calls?page=2&per_page=50"
+  }
+}
+```
+
+**Sample `/api/settings/manifest` response**
+```json
+{
+  "data": {
+    "path": "data/cleaned_calls.parquet",
+    "hash": "0x4f8e...",
+    "size_bytes": 4183721,
+    "updated_at": "2024-11-10T15:00:01Z"
+  }
+}
+```
+
+### 5. Frontend TanStack Query usage example
+```ts
+// src/lib/api/hooks.ts
+import { useQuery } from '@tanstack/react-query';
+import { client } from './client';
+import { CallsService } from '../generated';
+
+export function useCalls(filters: CallsFilters) {
+  return useQuery({
+    queryKey: ['calls', filters],
+    queryFn: async () => {
+      const api = new CallsService(client);
+      return api.getCalls(filters);
+    },
+    staleTime: 30_000,
+  });
+}
+```
+Then inside `src/app/calls/page.tsx`:
+```tsx
+const { data, isLoading } = useCalls(currentFilters);
+```
+This pattern ensures the UI always reflects the latest FastAPI schema, with build-time type safety provided by the generated client.
+
+## Development Workflow
+1. **Sync ETL data** – run `scripts/generate_parquet.py` whenever sample data changes.
+2. **Backend first** – modify FastAPI router/service/model, run `uvicorn` + `pytest`, regenerate `openapi.json`.
+3. **Update clients** – `pnpm api:generate` to refresh TypeScript clients, then run `pnpm lint` to catch mismatches.
+4. **Frontend work** – implement features under `src/features/*`, keeping layout + component patterns from [FrontArc.md](FrontArc.md).
+5. **Concurrent dev** – use two terminals or `docker-compose.dev.yml` to run FastAPI and Next.js simultaneously.
+6. **Branching** – follow feature branches off `local-first-approach` (or `main`), enforce PR checklists: lint, tests, OpenAPI regen proof.
+7. **Release prep** – tag once both stack halves are green; include manifest hash + ETL timestamp in release notes for traceability.
+
+## Coding Standards
+- **Frontend**
+  - TypeScript strict mode, React Server Components where possible, `use client` only when necessary.
+  - Tailwind classes ordered via Prettier plugin; design tokens defined in `tailwind.config.ts` and `themes.css`.
+  - Hooks must live in `src/lib/api/hooks.ts` or feature-specific hook files; query keys centralized in `src/lib/constants/queryKeys.ts`.
+  - UI state managed via Zustand slices; avoid prop drilling for core layout concerns.
+- **Backend**
+  - Pydantic models live in `app/models`, request/response schemas in `app/schemas`, routers thin, services contain business logic, repositories handle IO.
+  - Enforce ` ConfigDict(extra='forbid')` to reject unknown payload fields; prefer Polars lazy queries for heavy filtering.
+  - Logging is structured; every endpoint returns the standard `{ data, meta, links }` envelope or `{ error: { ... } }` on failure.
+  - Run `ruff check`, `ruff format`, and `mypy` before committing.
+
+## Testing
+- **Backend** – Pytest suites across unit (services, repositories), integration (FastAPI TestClient), contract tests (OpenAPI diff), and optional performance smoke tests (<250 ms P95 for `/api/calls`).
+- **Frontend** – Vitest + React Testing Library for components, Playwright E2E covering dashboard flows, Storybook visual regression (Chromatic) for KPI cards/charts.
+- **Shared contracts** – CI verifies that `openapi.json` was regenerated when schema changes occur and that `src/lib/api/generated` is current.
+
+## Contributing
+1. File an issue or start a discussion describing the feature/fix and reference the relevant blueprint sections.
+2. Create a branch (`feature/<short-desc>`), run ETL + backend + frontend locally, and keep OpenAPI + generated clients in sync.
+3. Update documentation if your change alters architecture layers, endpoints, or UI flows.
+4. Submit a PR with:
+   - `ruff`, `mypy`, `pytest` results (backend)
+   - `pnpm lint`, `pnpm test`, `pnpm test:e2e` (frontend, as applicable)
+   - Evidence that `openapi.json` + generated clients were regenerated (commit diff)
+5. Address review feedback promptly; keep commits focused.
+
+## License
+TBD – add license text or SPDX identifier when finalized.
