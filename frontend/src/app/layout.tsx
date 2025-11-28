@@ -3,6 +3,7 @@ import "../styles/globals.css";
 
 import { QueryProvider } from "../providers/query-provider";
 import { ThemeProvider } from "../providers/theme-provider";
+import { AppShell } from "../components/layout/app-shell";
 
 export const metadata: Metadata = {
   title: "AWS Serverless Support Analytics",
@@ -15,10 +16,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <AppShell>{children}</AppShell>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
