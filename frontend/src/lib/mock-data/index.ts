@@ -362,13 +362,13 @@ export const mockTimeSeriesData: TimeSeriesData[] = [
   { date: "2025-11-27", calls: 300, resolved: 262, escalated: 20 },
 ];
 
-// Issue type breakdown
+// Issue type breakdown (counts calculated from 1845 total calls, percentages rounded)
 export const mockIssueBreakdown: IssueBreakdown[] = [
-  { type: "Technical", count: 682, percentage: 37 },
-  { type: "Billing", count: 534, percentage: 29 },
-  { type: "Account", count: 387, percentage: 21 },
-  { type: "Feature Request", count: 168, percentage: 9 },
-  { type: "Other", count: 74, percentage: 4 },
+  { type: "Technical", count: 683, percentage: 37 },
+  { type: "Billing", count: 535, percentage: 29 },
+  { type: "Account", count: 388, percentage: 21 },
+  { type: "Feature Request", count: 166, percentage: 9 },
+  { type: "Other", count: 73, percentage: 4 },
 ];
 
 // Region data
