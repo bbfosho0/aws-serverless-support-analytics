@@ -2,6 +2,12 @@
 
 _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Next.js stack while running entirely on your laptop. The backend reads ETL artifacts in `data/` to emulate an S3 lakehouse, exposes typed APIs through FastAPI, and the frontend consumes those APIs via Next.js dashboards—ensuring a seamless later migration to managed AWS services._
 
+## 🚀 Live Demo (Static Export)
+
+- **URL**: [bbfosho0.github.io/aws-serverless-support-analytics](https://bbfosho0.github.io/aws-serverless-support-analytics/)
+- **What you see**: The fully prerendered Next.js dashboards, including the narrated `/dashboard` experience and every `/calls/[callId]` detail page, served straight from the `gh-pages` branch with the correct `basePath`/`assetPrefix` applied.
+- **Tech**: `next.config.mjs` uses `output: "export"`, `trailingSlash: true`, `GITHUB_PAGES=true` (from `.env.production`) and a `.nojekyll` marker so the `_next` assets are untouched by GitHub.
+
 > Architectural details originate from [FrontArc.md](FrontArc.md) (Next.js blueprint) and [BackArc.md](BackArc.md) (FastAPI blueprint). This README focuses on day-to-day development aligned with those plans.
 
 ## Quick Start (pip + npm)
@@ -60,6 +66,7 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 - [Key Features](#key-features)
 - [Usage & API Examples](#usage--api-examples)
 - [Development Workflow](#development-workflow)
+- [Static Demo Deployment](#static-demo-deployment)
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -381,6 +388,48 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
 5. **Concurrent dev** – use two terminals or `docker-compose.dev.yml` to run FastAPI and Next.js simultaneously.
 6. **Branching** – follow feature branches off `local-first-approach` (or `main`), enforce PR checklists: lint, tests, OpenAPI regen proof.
 7. **Release prep** – tag once both stack halves are green; include manifest hash + ETL timestamp in release notes for traceability.
+
+## Static Demo Deployment
+
+The GitHub Pages demo is generated from the same Next.js project—no manual HTML editing required.
+
+1. **Build locally for Pages**
+
+  ```powershell
+  cd frontend
+  npm run build   # .env.production already sets GITHUB_PAGES=true
+  ```
+
+  The export lands in `frontend/out/` with the repo-aware `basePath`/`assetPrefix`, pre-rendered call detail routes, and unoptimized images.
+
+1. **Publish to `gh-pages`**
+
+  ```powershell
+  # from repo root
+  git worktree add ../aws-serverless-support-analytics-gh-pages gh-pages
+  cd ../aws-serverless-support-analytics-gh-pages
+  git rm -rf .
+  robocopy ..\aws-serverless-support-analytics\frontend\out . /MIR
+  copy nul .nojekyll
+  git add .
+  git commit -m "Refresh static export"
+  git push origin gh-pages
+  git worktree remove ../aws-serverless-support-analytics-gh-pages
+  ```
+
+  (Use an equivalent `cp`/`rsync` flow on macOS/Linux.)
+
+1. **GitHub Pages settings**
+
+  - GitHub → _Settings_ → _Pages_
+  - **Source**: Deploy from a branch
+  - **Branch**: `gh-pages` / **Folder**: `/` (root)
+
+1. **Result**
+
+    - Pages serves everything under `<https://<username>.github.io/aws-serverless-support-analytics/>`
+    - The `_next` assets work because of `.nojekyll`
+    - Any time `main` updates, repeat the build + publish steps for a fresh static demo
 
 ## Coding Standards
 
