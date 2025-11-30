@@ -1,5 +1,5 @@
 import { callsDataset } from "./calls-data";
-import type { DashboardKpi } from "./types";
+import type { DashboardKpi, MockCallRecord } from "./types";
 
 export interface ChannelMetric {
   channel: string;
@@ -24,14 +24,6 @@ export interface AutomationProgram {
   descriptor: string;
 }
 
-const totalCalls = callsDataset.length;
-const firstResponseAvg =
-  callsDataset.reduce((acc, call) => acc + call.firstResponseMinutes, 0) / totalCalls;
-const firstContactResolutionRate =
-  (callsDataset.filter((call) => call.firstContactResolution).length / totalCalls) * 100;
-const automationAssistRate = 38.5;
-const proactiveSaveMinutes = Math.round(totalCalls * 0.18);
-
 function buildMiniSparkline(seed: number, length = 10): number[] {
   return Array.from({ length }, (_, index) => {
     const slope = seed + index * 0.4;
@@ -39,52 +31,70 @@ function buildMiniSparkline(seed: number, length = 10): number[] {
     return parseFloat((slope + wave).toFixed(1));
   });
 }
+function withFallback(calls: MockCallRecord[]): MockCallRecord[] {
+  return calls.length ? calls : callsDataset;
+}
 
-export const metricsKpis: DashboardKpi[] = [
-  {
-    label: "First response",
-    value: `${firstResponseAvg.toFixed(1)}m`,
-    delta: -1.1,
-    trend: "down",
-    descriptor: "Target under 9m",
-    category: "efficiency",
-    sparkline: buildMiniSparkline(9),
-    goal: "< 9m",
-  },
-  {
-    label: "FCR",
-    value: `${firstContactResolutionRate.toFixed(1)}%`,
-    delta: 2.8,
-    trend: "up",
-    descriptor: "First contact resolution",
-    category: "stability",
-    sparkline: buildMiniSparkline(88),
-    goal: "> 85%",
-  },
-  {
-    label: "Automation assist",
-    value: `${automationAssistRate.toFixed(1)}%`,
-    delta: 4.2,
-    trend: "up",
-    descriptor: "Conversations using co-pilot",
-    category: "efficiency",
-    sparkline: buildMiniSparkline(32),
-    goal: "40%",
-  },
-  {
-    label: "Minutes saved",
-    value: `${proactiveSaveMinutes.toLocaleString()}m`,
-    delta: 6.4,
-    trend: "up",
-    descriptor: "Deflected via proactive alerts",
-    category: "stability",
-    sparkline: buildMiniSparkline(72),
-  },
-];
+export function buildMetricsKpis(calls: MockCallRecord[]): DashboardKpi[] {
+  const workingSet = withFallback(calls);
+  const totalCalls = Math.max(1, workingSet.length);
+  const firstResponseAvg =
+    workingSet.reduce((acc, call) => acc + call.firstResponseMinutes, 0) / totalCalls;
+  const firstContactResolutionRate =
+    (workingSet.filter((call) => call.firstContactResolution).length / totalCalls) * 100;
+  const nonVoiceShare = workingSet.filter((call) => call.channel !== "voice").length / totalCalls;
+  const automationAssistRate = Math.min(72, 28 + nonVoiceShare * 45);
+  const proactiveSaveMinutes = Math.max(5, Math.round(totalCalls * 0.18));
 
-function buildChannelMetrics(): ChannelMetric[] {
+  return [
+    {
+      label: "First response",
+      value: `${firstResponseAvg.toFixed(1)}m`,
+      delta: -1.1,
+      trend: "down",
+      descriptor: "Target under 9m",
+      category: "efficiency",
+      sparkline: buildMiniSparkline(9 + firstResponseAvg / 2),
+      goal: "< 9m",
+    },
+    {
+      label: "FCR",
+      value: `${firstContactResolutionRate.toFixed(1)}%`,
+      delta: 2.8,
+      trend: "up",
+      descriptor: "First contact resolution",
+      category: "stability",
+      sparkline: buildMiniSparkline(80 + firstContactResolutionRate / 5),
+      goal: "> 85%",
+    },
+    {
+      label: "Automation assist",
+      value: `${automationAssistRate.toFixed(1)}%`,
+      delta: 4.2,
+      trend: "up",
+      descriptor: "Conversations using co-pilot",
+      category: "efficiency",
+      sparkline: buildMiniSparkline(30 + nonVoiceShare * 10),
+      goal: "40%",
+    },
+    {
+      label: "Minutes saved",
+      value: `${proactiveSaveMinutes.toLocaleString()}m`,
+      delta: 6.4,
+      trend: "up",
+      descriptor: "Deflected via proactive alerts",
+      category: "stability",
+      sparkline: buildMiniSparkline(60 + totalCalls / 80),
+    },
+  ];
+}
+
+export function buildChannelMetrics(calls: MockCallRecord[]): ChannelMetric[] {
+  const workingSet = withFallback(calls);
+  if (!workingSet.length) return [];
+
   const map = new Map<string, ChannelMetric>();
-  callsDataset.forEach((call, index) => {
+  workingSet.forEach((call, index) => {
     const entry =
       map.get(call.channel) ?? {
         channel: call.channel,
@@ -101,14 +111,12 @@ function buildChannelMetrics(): ChannelMetric[] {
   });
   return Array.from(map.values()).map((entry) => ({
     channel: entry.channel,
-    share: parseFloat(((entry.share / totalCalls) * 100).toFixed(1)),
+    share: parseFloat(((entry.share / workingSet.length) * 100).toFixed(1)),
     csat: parseFloat((entry.csat / entry.share).toFixed(1)),
     automation: parseFloat(entry.automation.toFixed(1)),
     avgHandleTime: parseFloat((entry.avgHandleTime / entry.share).toFixed(1)),
   }));
 }
-
-export const channelMetrics = buildChannelMetrics();
 
 export const slaTrend: SlaTrendPoint[] = [
   { label: "Week -3", sla: 94.2, backlogMinutes: 62 },

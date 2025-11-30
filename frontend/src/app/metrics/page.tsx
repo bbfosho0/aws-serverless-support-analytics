@@ -1,25 +1,38 @@
-import { AppShell } from "../../components/layout/app-shell";
+"use client";
+
+import { useMemo } from "react";
+
 import { KpiCard } from "../../components/charts/kpi-card";
 import { GlobalFilters } from "../../components/filters/global-filters";
+import { AppShell } from "../../components/layout/app-shell";
 import {
   automationPrograms,
-  channelMetrics,
-  metricsKpis,
+  buildChannelMetrics,
+  buildMetricsKpis,
   slaTrend,
   type AutomationProgram,
   type ChannelMetric,
   type SlaTrendPoint,
 } from "../../lib/data/metrics-data";
+import { callsDataset } from "../../lib/data/calls-data";
+import { useDemoFilters } from "../../lib/state/demoFilters";
+import { filterCalls } from "../../lib/utils/callFiltering";
 
 export default function MetricsPage() {
+  const selection = useDemoFilters((state) => state.selection);
+
+  const filteredCalls = useMemo(() => filterCalls(callsDataset, selection), [selection]);
+  const kpis = useMemo(() => buildMetricsKpis(filteredCalls), [filteredCalls]);
+  const channels = useMemo(() => buildChannelMetrics(filteredCalls), [filteredCalls]);
+
   return (
     <AppShell
       title="Metrics observatory"
       description="Live QA, SLA, and automation telemetry to prove the local-first mirror is production ready."
     >
-      <GlobalFilters />
+      <GlobalFilters activeCount={filteredCalls.length} totalCount={callsDataset.length} />
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {metricsKpis.map((kpi) => (
+        {kpis.map((kpi) => (
           <KpiCard key={kpi.label} {...kpi} />
         ))}
       </section>
@@ -27,7 +40,7 @@ export default function MetricsPage() {
         <TrendPanel data={slaTrend} />
         <AutomationPanel programs={automationPrograms} />
       </section>
-      <ChannelTable metrics={channelMetrics} />
+      <ChannelTable metrics={channels} />
     </AppShell>
   );
 }

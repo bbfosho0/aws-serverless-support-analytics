@@ -11,17 +11,27 @@ import {
 import { buildFilterSummary } from "../../lib/utils/callFiltering";
 
 export function CallsFilters() {
-  const { selection, setWindow, setRegion, setIntent } = useDemoFilters((state) => ({
+  const { selection, setWindow, setRegion, setIntent, reset } = useDemoFilters((state) => ({
     selection: state.selection,
     setWindow: state.setWindow,
     setRegion: state.setRegion,
     setIntent: state.setIntent,
+    reset: state.reset,
   }));
   const summary = useMemo(() => buildFilterSummary(selection), [selection]);
 
   return (
     <div className="rounded-2xl border border-border/60 bg-surface p-5 shadow-card">
-      <p className="text-xs font-semibold uppercase tracking-[0.4rem] text-muted-foreground">Filters</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.4rem] text-muted-foreground">Filters</p>
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-full border border-border/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground hover:border-foreground"
+        >
+          Reset
+        </button>
+      </div>
       <div className="mt-4 space-y-4 text-sm">
         <FilterRow label="Window" options={timeRangeOptions} active={selection.window} onSelect={setWindow} />
         <FilterRow label="Region" options={regionOptions} active={selection.region} onSelect={setRegion} />
