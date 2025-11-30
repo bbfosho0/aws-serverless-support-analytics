@@ -1,9 +1,0 @@
-{
-  "dataset": "cleaned_calls",
-  "path": "data/cleaned_calls.parquet",
-  "source": "local-simulation",
-  "hash": "placeholder",
-  "row_count": 0,
-  "generated_at": "2025-11-27T00:00:00Z",
-  "notes": "Stub manifest describing the parquet artifact produced by the ETL placeholder."
-}
