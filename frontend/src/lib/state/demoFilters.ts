@@ -2,7 +2,17 @@ import { create } from "zustand";
 
 export const timeRangeOptions = ["24h", "3d", "7d", "30d", "90d"] as const;
 export const regionOptions = ["Global", "NA", "EMEA", "APAC", "LATAM", "ANZ"] as const;
-export const intentOptions = ["All intents", "Billing", "Outage", "Refund", "Security"] as const;
+export const intentOptions = [
+  "All intents",
+  "Billing",
+  "Outage",
+  "Refund",
+  "Upgrade",
+  "Security",
+  "Compliance",
+  "Integrations",
+  "Voice Quality",
+] as const;
 
 export type TimeRange = (typeof timeRangeOptions)[number];
 export type RegionOption = (typeof regionOptions)[number];

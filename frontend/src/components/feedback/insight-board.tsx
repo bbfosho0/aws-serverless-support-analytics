@@ -25,6 +25,7 @@ const severityPalette: Record<InsightCard["severity"], { border: string; badge: 
 
 export function InsightBoard({ insights }: InsightBoardProps) {
   const [message, setMessage] = useState("Cue up a talking point and we&apos;ll keep score for you.");
+  const [activeInsight, setActiveInsight] = useState<InsightCard | null>(null);
 
   const briefingText = useMemo(
     () =>
@@ -44,8 +45,9 @@ export function InsightBoard({ insights }: InsightBoardProps) {
     setMessage("Briefing exported — share it before the meeting starts.");
   }, [briefingText]);
 
-  const handlePlaybook = useCallback((title: string) => {
-    setMessage(`Playbook opened for “${title}”. Check your notes below.`);
+  const handlePlaybook = useCallback((insight: InsightCard) => {
+    setActiveInsight(insight);
+    setMessage(`Playbook opened for “${insight.title}”. Reference the quick notes below.`);
   }, []);
 
   return (
@@ -84,7 +86,7 @@ export function InsightBoard({ insights }: InsightBoardProps) {
               </div>
               <button
                 type="button"
-                onClick={() => handlePlaybook(insight.title)}
+                onClick={() => handlePlaybook(insight)}
                 className="mt-3 w-full rounded-2xl border border-border/50 px-3 py-2 text-xs font-semibold text-foreground hover:border-foreground"
               >
                 Open playbook
@@ -93,6 +95,16 @@ export function InsightBoard({ insights }: InsightBoardProps) {
           );
         })}
       </div>
+      {activeInsight && (
+        <div className="rounded-3xl border border-border/60 bg-surface/90 p-4 text-sm text-foreground">
+          <p className="text-xs uppercase tracking-[0.35rem] text-muted-foreground">Playbook notes</p>
+          <h4 className="mt-1 text-lg font-semibold">{activeInsight.title}</h4>
+          <p className="mt-2 text-muted-foreground">{activeInsight.detail}</p>
+          <p className="mt-3 text-foreground">
+            <strong>Next step:</strong> {activeInsight.action}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

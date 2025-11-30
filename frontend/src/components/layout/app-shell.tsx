@@ -21,10 +21,10 @@ export function AppShell({ children, title, description, actions }: AppShellProp
         </Link>
         <PrimaryNav />
         <div className="mt-auto rounded-2xl border border-border/70 bg-surface-strong/50 p-4 text-sm text-muted-foreground">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">SLA Pulse</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Response target</p>
           <p className="mt-2 text-3xl font-display text-foreground">97.4%</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Sub-60s response for premium queues across all regions.
+            Portion of calls answered within the promised time window.
           </p>
         </div>
       </aside>

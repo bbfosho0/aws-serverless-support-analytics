@@ -69,7 +69,7 @@ export function CallsTable({ data, caption }: CallsTableProps) {
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <StatusPill label="Resolved" value={`${resolved}/${data.length}`} />
           <StatusPill label="Urgent" value={urgent.toString()} />
-          <StatusPill label="Avg AHT" value={`${avgHandle}m`} />
+          <StatusPill label="Avg handle time" value={`${avgHandle}m`} />
         </div>
         <button
           type="button"
@@ -92,7 +92,7 @@ export function CallsTable({ data, caption }: CallsTableProps) {
               <th className="px-4 py-3">Priority</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">First response</th>
-              <th className="px-4 py-3">CSAT</th>
+              <th className="px-4 py-3">Customer sat</th>
               <th className="px-4 py-3">Opened</th>
             </tr>
           </thead>
@@ -108,7 +108,7 @@ export function CallsTable({ data, caption }: CallsTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <p>{call.issue}</p>
-                  <p className="text-xs text-muted-foreground">{call.sentiment} sentiment</p>
+                  <p className="text-xs text-muted-foreground">Sentiment: {call.sentiment.replace(/^(.)/, (_, c) => c.toUpperCase())}</p>
                 </td>
                 <td className="px-4 py-4">
                   <ChannelPill channel={call.channel} />
@@ -129,7 +129,7 @@ export function CallsTable({ data, caption }: CallsTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <div className="font-semibold">{call.csat}%</div>
-                  <p className="text-xs text-muted-foreground">Δ {call.npsDelta}</p>
+                  <p className="text-xs text-muted-foreground">Customer satisfaction</p>
                 </td>
                 <td className="px-4 py-4 text-xs text-muted-foreground">
                   {new Date(call.openedAt).toLocaleString("en-US", {

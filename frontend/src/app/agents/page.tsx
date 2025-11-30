@@ -8,6 +8,10 @@ export default function AgentsPage() {
       title="Agent intelligence"
       description="Spot the trend lines keeping our premium queues stable before the AWS go-live."
     >
+      <p className="text-sm text-muted-foreground">
+        The snapshots below simply highlight who is leading this week on satisfaction, SLA, and call volume so you
+        can name-drop them during a briefing.
+      </p>
       <section className="grid gap-4 md:grid-cols-3">
         {topAgents.slice(0, 3).map((agent) => (
           <article key={agent.id} className="rounded-3xl border border-border/70 bg-surface p-4 shadow-card">

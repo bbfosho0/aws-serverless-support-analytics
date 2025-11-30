@@ -57,8 +57,8 @@ function FilterRow({
             onClick={() => onSelect(option)}
             className={
               option === active
-                ? "rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent"
-                : "rounded-full border border-border/50 px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
+                ? "rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white shadow-glow"
+                : "rounded-full border border-border/50 px-4 py-1.5 text-xs text-muted-foreground hover:border-accent/60"
             }
           >
             {option}
