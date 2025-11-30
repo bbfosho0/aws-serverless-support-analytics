@@ -6,6 +6,9 @@ export interface DashboardKpi {
   delta: number;
   trend: "up" | "down" | "flat";
   descriptor: string;
+  category: "stability" | "efficiency";
+  sparkline: number[];
+  goal?: string;
 }
 
 export interface VolumePoint {
@@ -14,6 +17,7 @@ export interface VolumePoint {
   chat: number;
   email: number;
   total: number;
+  forecast: number;
 }
 
 export interface IssueBreakdownEntry {

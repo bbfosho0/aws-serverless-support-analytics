@@ -240,10 +240,24 @@ aws-serverless-support-analytics/
 - **Local AWS simulation** – Parquet + manifest files emulate S3/Glue outputs; switching to real AWS storage later is a config-only change.
 - **Typed FastAPI layer** – Routers for calls, agents, metrics, settings, health, and auth stub share Pydantic models across services.
 - **Next.js dashboards** – App Router layouts, KPI cards, charts (Nivo/Recharts), and TanStack Table explorer deliver modern UX.
+- **Employer-facing narrative layer** – Revamped hero, scenario filters, KPI runways, dual actual/forecast visuals, and severity-aware insights ensure the `/dashboard` route feels like a polished on-site demo even when running locally.
 - **Extensible design system** – Tailwind tokens, shadcn/ui primitives, and Radix-driven accessibility guidelines.
 - **Query-driven data layer** – TanStack Query hooks encapsulate caching, streaming, and optimistic updates tied to generated OpenAPI clients.
 - **Operational insights** – Settings page surfaces manifest details, manual refresh button, and ETL health checks.
 - **AWS-ready workflow** – Config toggles for `DATA_SOURCE=s3`, optional Redis cache, and OpenTelemetry hooks keep the stack cloud-ready.
+
+## Dashboard Experience (Employer Demo)
+
+The November 2025 refresh turned the `/dashboard` route into a scripted story recruiters can walk through without touching AWS:
+
+- **Narrative hero** – `DashboardHero` now mixes a glassmorphism panel, CTA buttons, and a custom SVG SLA dial so you can talk through backlog, refresh cadence, and service targets in one glance.
+- **Scenario-aware filter dock** – `GlobalFilters` introduces "simulation lanes" (Migration Lab, Production, Playbook) plus status badges showing the manifest, timezone, and snapshot powering the demo.
+- **Dual KPI runways** – KPIs are split into stability vs efficiency tracks. Each `KpiCard` includes category badges, goal chips, and sparkline gradients generated from the richer mock data.
+- **Actual vs forecast coverage** – `VolumeArea` renders actual interaction volumes with forecast overlays, per-channel callouts, and supporting stats so you can narrate mitigations around upcoming surges.
+- **Intent and region intelligence** – `CategoryBreakdown` adds trend badges + progress tiles and `RegionGrid` surfaces CSAT/SLA/queue progress bars per geo for an ops-grade view.
+- **Insight stream + transcripts** – Severity-colored `InsightBoard` cards provide talking points while the revamped `CallsTable` adds summary pills, channel badges, SLA indicators, and CSV export affordances.
+
+These upgrades all run locally against `data/sample_calls.json` → `data/cleaned_calls.parquet`, keeping the portfolio-friendly visuals tightly coupled with the simulated Glue outputs.
 
 ## Usage & API Examples
 
@@ -344,11 +358,13 @@ export function useCalls(filters: CallsFilters) {
   });
 }
 ```
+
 Then inside `src/app/calls/page.tsx`:
 
 ```tsx
 const { data, isLoading } = useCalls(currentFilters);
 ```
+
 This pattern ensures the UI always reflects the latest FastAPI schema, with build-time type safety provided by the generated client.
 
 ## Development Workflow
@@ -360,6 +376,7 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
 5. **Concurrent dev** – use two terminals or `docker-compose.dev.yml` to run FastAPI and Next.js simultaneously.
 6. **Branching** – follow feature branches off `local-first-approach` (or `main`), enforce PR checklists: lint, tests, OpenAPI regen proof.
 7. **Release prep** – tag once both stack halves are green; include manifest hash + ETL timestamp in release notes for traceability.
+
 ## Coding Standards
 
 - **Frontend**
@@ -372,11 +389,13 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
   - Enforce `ConfigDict(extra='forbid')` to reject unknown payload fields; prefer Polars lazy queries for heavy filtering.
   - Logging is structured; every endpoint returns the standard `{ data, meta, links }` envelope or `{ error: { ... } }` on failure.
   - Run `ruff check`, `ruff format`, and `mypy` before committing.
+
 ## Testing
 
 - **Backend** – Pytest suites across unit (services, repositories), integration (FastAPI TestClient), contract tests (OpenAPI diff), and optional performance smoke tests (<250 ms P95 for `/api/calls`).
 - **Frontend** – Vitest + React Testing Library for components, Playwright E2E covering dashboard flows, Storybook visual regression (Chromatic) for KPI cards/charts.
 - **Shared contracts** – CI verifies that `openapi.json` was regenerated when schema changes occur and that `src/lib/api/generated` is current.
+
 ## Contributing
 
 1. File an issue or start a discussion describing the feature/fix and reference the relevant blueprint sections.
@@ -387,6 +406,7 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
    - `pnpm lint`, `pnpm test`, `pnpm test:e2e` (frontend, as applicable)
    - Evidence that `openapi.json` + generated clients were regenerated (commit diff)
 5. Address review feedback promptly; keep commits focused.
+
 ## License
 
 TBD – add license text or SPDX identifier when finalized.

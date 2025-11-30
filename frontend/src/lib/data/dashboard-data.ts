@@ -12,27 +12,44 @@ const resolvedCalls = callsDataset.filter((call) => call.status === "resolved");
 const escalationRate =
   (callsDataset.filter((call) => call.status === "escalated").length / callsDataset.length) * 100;
 
+function buildSparkline(seed: number, length = 12): number[] {
+  return Array.from({ length }, (_, index) => {
+    const base = seed + index * 0.6;
+    const wave = Math.sin((index + seed) / 2.5) * 3;
+    return parseFloat((base + wave).toFixed(1));
+  });
+}
+
 export const dashboardKpis: DashboardKpi[] = [
   {
-    label: "Total Interactions",
+    label: "Total interactions",
     value: callsDataset.length.toLocaleString(),
     delta: 8.2,
     trend: "up",
     descriptor: "vs. previous 7 days",
+    category: "stability",
+    sparkline: buildSparkline(68),
+    goal: "+5%",
   },
   {
-    label: "Avg Handle Time",
+    label: "Avg handle time",
     value: `${Math.round(totalDuration / callsDataset.length / 60)}m`,
     delta: -4.3,
     trend: "down",
     descriptor: "target 12m",
+    category: "efficiency",
+    sparkline: buildSparkline(14),
+    goal: "≤ 12m",
   },
   {
-    label: "Resolution Rate",
+    label: "Resolution rate",
     value: `${((resolvedCalls.length / callsDataset.length) * 100).toFixed(1)}%`,
     delta: 2.1,
     trend: "up",
     descriptor: "cases closed first touch",
+    category: "stability",
+    sparkline: buildSparkline(82),
+    goal: "≥ 90%",
   },
   {
     label: "Escalation",
@@ -40,6 +57,9 @@ export const dashboardKpis: DashboardKpi[] = [
     delta: 1.3,
     trend: "down",
     descriptor: "critical transfers",
+    category: "efficiency",
+    sparkline: buildSparkline(9),
+    goal: "< 8%",
   },
 ];
 
@@ -53,6 +73,7 @@ function buildVolumeSeries(): VolumePoint[] {
       chat: 0,
       email: 0,
       total: 0,
+      forecast: 0,
     };
     const next = { ...existing };
     next.total += 1;
@@ -61,7 +82,16 @@ function buildVolumeSeries(): VolumePoint[] {
     if (call.channel === "email") next.email += 1;
     seriesMap.set(dateKey, next);
   });
-  return Array.from(seriesMap.values()).slice(-14);
+  const compacted = Array.from(seriesMap.values()).slice(-14);
+  return compacted.map((point, index, arr) => {
+    const seasonalWave = Math.sin(index / 2.2) * 6;
+    const growthDrift = index - arr.length / 2;
+    const adjusted = point.total + seasonalWave + growthDrift;
+    return {
+      ...point,
+      forecast: Math.max(0, Math.round(adjusted + 5)),
+    };
+  });
 }
 
 export const callVolumeSeries = buildVolumeSeries();
