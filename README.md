@@ -44,10 +44,10 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
   ```powershell
   cd ../frontend
   npm install
-  npm run dev -- --port=3000   # "--" passes the flag to Next.js; replace with pnpm dev --port=3000 if you prefer pnpm
+  npm run dev -- --port=3000   # "--" passes the flag to Next.js when relaying custom args
   ```
 
-  Visit `http://localhost:3000/dashboard` (frontend) and `http://localhost:8000/api/healthz` (backend health) to confirm everything is running. You can swap `npm` for `pnpm` if desired.
+  Visit `http://localhost:3000/dashboard` (frontend) and `http://localhost:8000/api/healthz` (backend health) to confirm everything is running. If you rely on another package manager, adapt the commands accordingly, but all examples below assume `npm`.
 
 
 ## Table of Contents
@@ -72,7 +72,7 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 | **Backend** | FastAPI, Pydantic v2, Uvicorn, Polars/Pandas for Parquet reads, Python BaseSettings, JWT auth stub, structlog, pytest, Ruff, mypy |
 | **Data & ETL** | `support_analytics/etl.py`, `scripts/generate_parquet.py`, Parquet + JSON manifest artifacts, optional Redis cache, future S3fs + boto3 adapters |
 | **Infrastructure Targets** | Local filesystem today; future-ready for AWS S3 data lake, AWS Glue crawlers, Fargate/App Runner deployment, OpenAPI-driven client generation via `openapi-typescript` |
-| **Tooling & DX** | pnpm, uv/poetry (or pip), Prettier + ESLint, Husky, Thunder Client, VS Code Tailwind/TS/Ruff extensions |
+| **Tooling & DX** | npm (pnpm optional), uv/poetry (or pip), Prettier + ESLint, Husky, Thunder Client, VS Code Tailwind/TS/Ruff extensions |
 
 ## Architecture
 
@@ -99,7 +99,7 @@ The solution pairs a typed FastAPI backend with a streaming-first Next.js fronte
 
 ### 1. Prerequisites
 
-- Node.js 20+ with `pnpm` (or `npm` if you prefer)
+- Node.js 20+ with `npm` (feel free to substitute another package manager if you already have one configured)
 - Python 3.11+
 - [`uv`](https://github.com/astral-sh/uv) for painless virtualenv + dependency management (alternatively use `python -m venv` + `pip`)
 - Git, VS Code, and the Parquet dependencies already pinned in `requirements.txt`
@@ -117,7 +117,7 @@ cd aws-serverless-support-analytics
 ```powershell
 # Windows (PowerShell)
 python -3.11 -m venv .venv
-\.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install --upgrade pip
 pip install -r requirements.txt          # shared ETL + test deps
 pip install -r backend/requirements.txt   # FastAPI-specific deps
@@ -168,28 +168,32 @@ NEXT_PUBLIC_DEFAULT_TIME_RANGE=30d
 cd backend
 uvicorn app.main:app --reload --port 8000
 ```
-Verify the simulation:
 
-```bash
-curl http://localhost:8000/api/healthz
+Verify the simulation from a second PowerShell window:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/healthz
 ```
 
 ### 7. Start the Next.js frontend
 
 ```powershell
 cd frontend
-pnpm install    # or: npm install
-pnpm dev --port 3000  # or: npm run dev -- --port=3000
+npm install
+npm run dev -- --port=3000
 ```
+
 Navigate to `http://localhost:3000/dashboard` to see local dashboards backed by the simulated AWS pipeline.
 
 ### 8. (Optional) Regenerate typed API clients
 
-```bash
+```powershell
 cd frontend
-pnpm api:generate   # runs openapi-typescript against http://localhost:8000/openapi.json
-pnpm lint && pnpm test
+npm run api:generate   # runs openapi-typescript against http://localhost:8000/openapi.json
+npm run lint
+npm run test
 ```
+
 Run this after any FastAPI schema change so the React hooks stay in sync.
 
 ## Project Structure
@@ -261,39 +265,38 @@ These upgrades all run locally against `data/sample_calls.json` → `data/cleane
 
 ## Usage & API Examples
 
-### 1. Regenerate ETL artifacts & refresh manifest
+### 1. Regenerate ETL artifacts & refresh manifest (PowerShell)
 
-```bash
+```powershell
 python scripts/generate_parquet.py --input data/sample_calls.json --output data/cleaned_calls.parquet
-curl -X POST http://localhost:8000/api/settings/refresh \
-  -H "Authorization: Bearer <admin-jwt>"
+Invoke-RestMethod -Uri http://localhost:8000/api/settings/refresh -Method Post -Headers @{ Authorization = "Bearer <admin-jwt>" }
 ```
 
 ### 2. Start backend + frontend together (PowerShell)
 
 ```powershell
-Start-Job { .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload }
-Start-Job { cd frontend; pnpm dev }
+Start-Job { .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000 }
+Start-Job { cd frontend; npm run dev -- --port=3000 }
 ```
 
 ### 3. Generate OpenAPI clients for the frontend
 
-```bash
-make openapi           # backend exports openapi.json
+```powershell
+# Ensure the FastAPI server is running locally (see Quick Start step 4/6)
 cd frontend
-pnpm api:generate      # regenerates src/lib/api/generated
+npm run api:generate      # regenerates src/lib/api/generated against http://localhost:8000/openapi.json
 ```
 
 ### 4. REST API reference (local simulation)
 
 | Endpoint | Method | Description | Sample |
 | --- | --- | --- | --- |
-| `/api/calls` | GET | Paginated, filterable call records from Parquet | `curl "http://localhost:8000/api/calls?page=1&per_page=50&region=NA"` |
-| `/api/calls/{id}` | GET | Detailed call payload (timeline, notes, derived metrics) | `curl http://localhost:8000/api/calls/12345` |
-| `/api/agents` | GET | Agent leaderboard aggregations | `curl http://localhost:8000/api/agents?sort=rating` |
-| `/api/metrics` | GET | KPI snapshots + time-series arrays | `curl "http://localhost:8000/api/metrics?range=30d"` |
-| `/api/settings/manifest` | GET | Manifest diagnostics (hash, updated_at, file size) | `curl http://localhost:8000/api/settings/manifest` |
-| `/api/auth/sign-in` | POST | Auth stub issuing JWTs for local dev | `curl -X POST http://localhost:8000/api/auth/sign-in -d '{"username":"admin","password":"dev"}' -H "Content-Type: application/json"` |
+| `/api/calls` | GET | Paginated, filterable call records from Parquet | `Invoke-RestMethod -Uri 'http://localhost:8000/api/calls?page=1&per_page=50&region=NA'` |
+| `/api/calls/{id}` | GET | Detailed call payload (timeline, notes, derived metrics) | `Invoke-RestMethod -Uri 'http://localhost:8000/api/calls/12345'` |
+| `/api/agents` | GET | Agent leaderboard aggregations | `Invoke-RestMethod -Uri 'http://localhost:8000/api/agents?sort=rating'` |
+| `/api/metrics` | GET | KPI snapshots + time-series arrays | `Invoke-RestMethod -Uri 'http://localhost:8000/api/metrics?range=30d'` |
+| `/api/settings/manifest` | GET | Manifest diagnostics (hash, updated_at, file size) | `Invoke-RestMethod -Uri 'http://localhost:8000/api/settings/manifest'` |
+| `/api/auth/sign-in` | POST | Auth stub issuing JWTs for local dev | `Invoke-RestMethod -Uri 'http://localhost:8000/api/auth/sign-in' -Method Post -Headers @{ 'Content-Type' = 'application/json' } -Body '{"username":"admin","password":"dev"}'` |
 
 **Sample `/api/calls` response**
 
@@ -371,7 +374,7 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
 
 1. **Sync ETL data** – run `scripts/generate_parquet.py` whenever sample data changes.
 2. **Backend first** – modify FastAPI router/service/model, run `uvicorn` + `pytest`, regenerate `openapi.json`.
-3. **Update clients** – `pnpm api:generate` to refresh TypeScript clients, then run `pnpm lint` to catch mismatches.
+3. **Update clients** – `npm run api:generate` to refresh TypeScript clients, then run `npm run lint` and `npm run test` to catch mismatches.
 4. **Frontend work** – implement features under `src/features/*`, keeping layout + component patterns from [FrontArc.md](FrontArc.md).
 5. **Concurrent dev** – use two terminals or `docker-compose.dev.yml` to run FastAPI and Next.js simultaneously.
 6. **Branching** – follow feature branches off `local-first-approach` (or `main`), enforce PR checklists: lint, tests, OpenAPI regen proof.
@@ -399,13 +402,15 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
 ## Contributing
 
 1. File an issue or start a discussion describing the feature/fix and reference the relevant blueprint sections.
-2. Create a branch (`feature/<short-desc>`), run ETL + backend + frontend locally, and keep OpenAPI + generated clients in sync.
-3. Update documentation if your change alters architecture layers, endpoints, or UI flows.
-4. Submit a PR with:
-   - `ruff`, `mypy`, `pytest` results (backend)
-   - `pnpm lint`, `pnpm test`, `pnpm test:e2e` (frontend, as applicable)
-   - Evidence that `openapi.json` + generated clients were regenerated (commit diff)
-5. Address review feedback promptly; keep commits focused.
+1. Create a branch (`feature/<short-desc>`), run ETL + backend + frontend locally, and keep OpenAPI + generated clients in sync.
+1. Update documentation if your change alters architecture layers, endpoints, or UI flows.
+1. Submit a PR with:
+
+    - `ruff`, `mypy`, `pytest` results (backend)
+    - `npm run lint`, `npm run test`, `npm run test:e2e` (frontend, as applicable)
+    - Evidence that `openapi.json` + generated clients were regenerated (commit diff)
+
+1. Address review feedback promptly; keep commits focused.
 
 ## License
 
