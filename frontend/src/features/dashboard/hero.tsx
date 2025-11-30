@@ -1,3 +1,7 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+
 interface DashboardHeroProps {
   totalInteractions: number;
   backlogMinutes: number;
@@ -15,6 +19,21 @@ export function DashboardHero({
   slaAttainment,
   slaTarget,
 }: DashboardHeroProps) {
+  const [ctaMessage, setCtaMessage] = useState("Ready when you are.");
+
+  const handleLaunch = useCallback(() => {
+    const target = document.getElementById("insights") ?? document.getElementById("transcripts");
+    target?.scrollIntoView({ behavior: "smooth" });
+    setCtaMessage("Guided tour loaded — scroll for the highlights.");
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setCtaMessage("Refreshing this preview…");
+    setTimeout(() => setCtaMessage("Demo data is synced to the latest snapshot."), 1200);
+  }, []);
+
+  const formattedInteractions = useMemo(() => new Intl.NumberFormat().format(totalInteractions), [totalInteractions]);
+
   return (
     <section className="relative overflow-hidden rounded-[32px] border border-border/60 bg-gradient-to-br from-surface via-surface-strong to-surface shadow-glow">
       <div className="pointer-events-none absolute inset-0 opacity-70">
@@ -31,24 +50,36 @@ export function DashboardHero({
               Observability cockpit for AWS contact centers
             </h1>
             <p className="mt-4 text-base text-muted-foreground">
-              FastAPI streams replay last-night&apos;s Glue tables so you can model migrations, prove
-              SLAs, and demo a full contact-center telemetry stack entirely on a laptop.
+              Give stakeholders the full story in minutes. This guided mirror replays real customer
+              moments so you can showcase readiness without logging into production.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Tracking {formattedInteractions} touchpoints across this week&apos;s pilot.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-xs md:text-sm">
-            <Tag label="Live backlog" value={`${backlogMinutes}m`} subtle />
+            <Tag label="Live backlog" value={`${backlogMinutes} minutes`} subtle />
             <Tag label="Next refresh" value={refreshEta} subtle={false} />
-            <Tag label="View manifests" value="data/manifest.json" subtle />
+            <Tag label="Data snapshot" value="Today 04:00" subtle />
           </div>
           <div className="flex flex-wrap gap-4">
-            <button className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-surface transition hover:translate-y-0.5">
-              Launch dashboard
+            <button
+              type="button"
+              onClick={handleLaunch}
+              className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-surface transition hover:translate-y-0.5"
+            >
+              Start guided tour
               <span aria-hidden>↗</span>
             </button>
-            <button className="inline-flex items-center gap-2 rounded-full border border-border/60 px-6 py-3 text-sm font-semibold text-foreground transition hover:border-foreground">
-              Trigger ETL refresh
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 px-6 py-3 text-sm font-semibold text-foreground transition hover:border-foreground"
+            >
+              Refresh demo data
             </button>
           </div>
+          <p className="text-sm text-accent">{ctaMessage}</p>
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             {focusStreams.map((stream) => (
               <span
@@ -63,20 +94,20 @@ export function DashboardHero({
         </div>
         <div className="grid gap-5 rounded-3xl border border-border/60 bg-surface/90 p-6 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">SLA attainment</p>
+            <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Customer promise</p>
             <div className="mt-4 flex flex-col gap-6 sm:flex-row sm:items-center">
               <SlaDial value={slaAttainment} target={slaTarget} />
               <div className="space-y-4 text-sm">
                 <div>
                   <p className="font-semibold text-foreground">{slaAttainment.toFixed(1)}%</p>
-                  <p className="text-muted-foreground">Current simulated SLA</p>
+                  <p className="text-muted-foreground">Current promise</p>
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">{slaTarget}%</p>
-                  <p className="text-muted-foreground">Target set for employer demo</p>
+                  <p className="text-muted-foreground">Goal for this tour</p>
                 </div>
                 <p className="rounded-2xl bg-accent/10 px-4 py-2 text-xs text-accent">
-                  Holding steady — surge playbook not required.
+                  Holding steady — no surge playbook needed today.
                 </p>
               </div>
             </div>
@@ -84,9 +115,9 @@ export function DashboardHero({
           <div>
             <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Mirror timeline</p>
             <div className="mt-4 grid gap-3 text-sm">
-              <TimelineItem label="Parquet ingest" value="00:02" detail="Polars ETL replay" />
-              <TimelineItem label="Schema sync" value="00:45" detail="openapi-typescript clients" />
-              <TimelineItem label="Next.js hydrate" value="00:58" detail="All dashboards warm" />
+              <TimelineItem label="Data ingest" value="00:02" detail="Fresh conversations loaded" />
+              <TimelineItem label="Handout review" value="00:45" detail="Briefings shared with leads" />
+              <TimelineItem label="Dashboard warm" value="00:58" detail="Every panel preloaded" />
             </div>
           </div>
         </div>

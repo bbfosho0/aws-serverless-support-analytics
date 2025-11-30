@@ -1,3 +1,6 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
 import type { InsightCard } from "../../lib/data/types";
 
 interface InsightBoardProps {
@@ -21,14 +24,43 @@ const severityPalette: Record<InsightCard["severity"], { border: string; badge: 
 };
 
 export function InsightBoard({ insights }: InsightBoardProps) {
+  const [message, setMessage] = useState("Cue up a talking point and we&apos;ll keep score for you.");
+
+  const briefingText = useMemo(
+    () =>
+      insights
+        .map((insight) => `${insight.title} — ${insight.detail} | Action: ${insight.action}`)
+        .join("\n"),
+    [insights],
+  );
+
+  const handleExport = useCallback(() => {
+    const blob = new Blob([briefingText], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "client-briefing.txt";
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setMessage("Briefing exported — share it before the meeting starts.");
+  }, [briefingText]);
+
+  const handlePlaybook = useCallback((title: string) => {
+    setMessage(`Playbook opened for “${title}”. Check your notes below.`);
+  }, []);
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Insights stream</p>
-          <p className="text-sm text-muted-foreground">Synthetic alerting to narrate the story mid-demo</p>
+          <p className="text-sm text-muted-foreground">Friendly sound bites for your client walk-through.</p>
+          <p className="text-xs text-accent">{message}</p>
         </div>
-        <button className="rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground">
+        <button
+          type="button"
+          onClick={handleExport}
+          className="rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground"
+        >
           Export briefing
         </button>
       </div>
@@ -50,7 +82,11 @@ export function InsightBoard({ insights }: InsightBoardProps) {
                 <span>Action</span>
                 <span className="font-semibold text-foreground">{insight.action}</span>
               </div>
-              <button className="mt-3 w-full rounded-2xl border border-border/50 px-3 py-2 text-xs font-semibold text-foreground hover:border-foreground">
+              <button
+                type="button"
+                onClick={() => handlePlaybook(insight.title)}
+                className="mt-3 w-full rounded-2xl border border-border/50 px-3 py-2 text-xs font-semibold text-foreground hover:border-foreground"
+              >
                 Open playbook
               </button>
             </article>
