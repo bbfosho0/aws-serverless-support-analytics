@@ -1,6 +1,12 @@
 import { AppShell } from "../../../components/layout/app-shell";
 import { callsDataset } from "../../../lib/data/calls-data";
 
+export function generateStaticParams() {
+  return callsDataset.map((call) => ({ callId: call.id }));
+}
+
+export const dynamicParams = false;
+
 interface CallDetailPageProps {
   params: { callId: string };
 }

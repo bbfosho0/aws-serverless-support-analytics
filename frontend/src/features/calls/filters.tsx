@@ -45,16 +45,16 @@ export function CallsFilters() {
   );
 }
 
-function FilterRow({
+function FilterRow<T extends string>({
   label,
   options,
   active,
   onSelect,
 }: {
   label: string;
-  options: readonly string[];
-  active: string;
-  onSelect: (option: string) => void;
+  options: readonly T[];
+  active: T;
+  onSelect: (option: T) => void;
 }) {
   return (
     <div>

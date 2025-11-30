@@ -89,16 +89,16 @@ export function GlobalFilters({ activeCount, totalCount }: GlobalFiltersProps) {
   );
 }
 
-function FilterGroup({
+function FilterGroup<T extends string>({
   label,
   options,
   active,
   onSelect,
 }: {
   label: string;
-  options: string[];
-  active: string;
-  onSelect: (option: string) => void;
+  options: readonly T[];
+  active: T;
+  onSelect: (option: T) => void;
 }) {
   return (
     <div>
