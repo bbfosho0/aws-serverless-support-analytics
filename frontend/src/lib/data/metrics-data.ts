@@ -32,6 +32,14 @@ const firstContactResolutionRate =
 const automationAssistRate = 38.5;
 const proactiveSaveMinutes = Math.round(totalCalls * 0.18);
 
+function buildMiniSparkline(seed: number, length = 10): number[] {
+  return Array.from({ length }, (_, index) => {
+    const slope = seed + index * 0.4;
+    const wave = Math.sin((index + seed) / 2.2) * 1.4;
+    return parseFloat((slope + wave).toFixed(1));
+  });
+}
+
 export const metricsKpis: DashboardKpi[] = [
   {
     label: "First response",
@@ -39,6 +47,9 @@ export const metricsKpis: DashboardKpi[] = [
     delta: -1.1,
     trend: "down",
     descriptor: "Target under 9m",
+    category: "efficiency",
+    sparkline: buildMiniSparkline(9),
+    goal: "< 9m",
   },
   {
     label: "FCR",
@@ -46,6 +57,9 @@ export const metricsKpis: DashboardKpi[] = [
     delta: 2.8,
     trend: "up",
     descriptor: "First contact resolution",
+    category: "stability",
+    sparkline: buildMiniSparkline(88),
+    goal: "> 85%",
   },
   {
     label: "Automation assist",
@@ -53,6 +67,9 @@ export const metricsKpis: DashboardKpi[] = [
     delta: 4.2,
     trend: "up",
     descriptor: "Conversations using co-pilot",
+    category: "efficiency",
+    sparkline: buildMiniSparkline(32),
+    goal: "40%",
   },
   {
     label: "Minutes saved",
@@ -60,6 +77,8 @@ export const metricsKpis: DashboardKpi[] = [
     delta: 6.4,
     trend: "up",
     descriptor: "Deflected via proactive alerts",
+    category: "stability",
+    sparkline: buildMiniSparkline(72),
   },
 ];
 

@@ -11,8 +11,8 @@ import {
 import { buildFilterSummary } from "../../lib/utils/callFiltering";
 
 interface GlobalFiltersProps {
-  activeCount: number;
-  totalCount: number;
+  activeCount?: number;
+  totalCount?: number;
 }
 
 export function GlobalFilters({ activeCount, totalCount }: GlobalFiltersProps) {
@@ -25,10 +25,20 @@ export function GlobalFilters({ activeCount, totalCount }: GlobalFiltersProps) {
   }));
 
   const summary = useMemo(() => buildFilterSummary(selection), [selection]);
-  const activeLabel = useMemo(() => `${activeCount.toLocaleString()} of ${totalCount.toLocaleString()} calls`, [
-    activeCount,
-    totalCount,
-  ]);
+  const activeLabel = useMemo(() => {
+    if (activeCount == null && totalCount == null) {
+      return "Live filtered sample";
+    }
+
+    const resolvedActive = activeCount ?? totalCount ?? 0;
+    const resolvedTotal = totalCount ?? resolvedActive;
+
+    if (resolvedActive === resolvedTotal) {
+      return `${resolvedActive.toLocaleString()} calls`;
+    }
+
+    return `${resolvedActive.toLocaleString()} of ${resolvedTotal.toLocaleString()} calls`;
+  }, [activeCount, totalCount]);
 
   return (
     <section className="rounded-[32px] border border-border/60 bg-gradient-to-br from-surface via-surface-strong to-surface shadow-card">
