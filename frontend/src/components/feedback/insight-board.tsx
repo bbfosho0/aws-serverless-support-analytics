@@ -49,7 +49,7 @@ export function InsightBoard({ insights }: InsightBoardProps) {
   }, []);
 
   return (
-    <section className="space-y-4">
+    <section id="insights" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Insights stream</p>

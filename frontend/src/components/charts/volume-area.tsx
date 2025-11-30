@@ -13,11 +13,12 @@ const channelPalette: Record<"voice" | "chat" | "email", string> = {
 };
 
 export function VolumeArea({ data, title, subTitle }: VolumeAreaProps) {
-  const maxValue = Math.max(...data.map((point) => Math.max(point.total, point.forecast)));
+  const sampleSize = Math.max(1, data.length);
+  const maxValue = Math.max(...data.map((point) => Math.max(point.total, point.forecast)), 1);
   const actualPath = buildAreaPath(data.map((point) => point.total), maxValue);
   const forecastPath = buildLinePath(data.map((point) => point.forecast), maxValue);
-  const lastPoint = data[data.length - 1];
-  const avgVolume = Math.round(data.reduce((acc, point) => acc + point.total, 0) / data.length);
+  const lastPoint = data[data.length - 1] ?? { total: 0, forecast: 0, date: "-", voice: 0, chat: 0, email: 0 };
+  const avgVolume = Math.round(data.reduce((acc, point) => acc + point.total, 0) / sampleSize);
   const channelTotals: Array<{ key: keyof typeof channelPalette; label: string; value: number }> = [
     { key: "voice", label: "Voice", value: data.reduce((acc, point) => acc + point.voice, 0) },
     { key: "chat", label: "Chat", value: data.reduce((acc, point) => acc + point.chat, 0) },
@@ -64,7 +65,7 @@ export function VolumeArea({ data, title, subTitle }: VolumeAreaProps) {
           <p className="text-sm text-muted-foreground">calls per day</p>
         </div>
         {channelTotals.map((channel) => {
-          const perDay = Math.round(channel.value / Math.max(1, data.length));
+          const perDay = Math.round(channel.value / sampleSize);
           return (
             <div
               key={channel.key}

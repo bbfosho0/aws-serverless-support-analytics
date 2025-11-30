@@ -1,72 +1,78 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-const timeRanges = ["24h", "3d", "7d", "30d", "90d"];
-const regions = ["Global", "NA", "EMEA", "APAC", "LATAM", "ANZ"];
-const issues = ["All intents", "Billing", "Connectivity", "Refunds", "Security"];
-const scenarios = ["Migration lab", "Production", "Playbook"];
+import {
+  intentOptions,
+  regionOptions,
+  timeRangeOptions,
+  useDemoFilters,
+} from "../../lib/state/demoFilters";
+import { buildFilterSummary } from "../../lib/utils/callFiltering";
 
-export function GlobalFilters() {
-  const [selection, setSelection] = useState({
-    scenario: "Migration lab",
-    window: "7d",
-    region: "Global",
-    intent: "Billing",
-  });
+interface GlobalFiltersProps {
+  activeCount: number;
+  totalCount: number;
+}
 
-  const summary = useMemo(
-    () => `${selection.window} • ${selection.region} • ${selection.intent.toLowerCase()}`,
-    [selection.window, selection.region, selection.intent],
-  );
+export function GlobalFilters({ activeCount, totalCount }: GlobalFiltersProps) {
+  const { selection, setWindow, setRegion, setIntent, reset } = useDemoFilters((state) => ({
+    selection: state.selection,
+    setWindow: state.setWindow,
+    setRegion: state.setRegion,
+    setIntent: state.setIntent,
+    reset: state.reset,
+  }));
+
+  const summary = useMemo(() => buildFilterSummary(selection), [selection]);
+  const activeLabel = useMemo(() => `${activeCount.toLocaleString()} of ${totalCount.toLocaleString()} calls`, [
+    activeCount,
+    totalCount,
+  ]);
 
   return (
     <section className="rounded-[32px] border border-border/60 bg-gradient-to-br from-surface via-surface-strong to-surface shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/40 px-6 py-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Simulation lane</p>
-          <p className="text-sm text-muted-foreground">Choose the story clients will experience.</p>
+          <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">Filters</p>
+          <p className="text-sm text-muted-foreground">Dial in the preview that best matches your briefing.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {scenarios.map((scenario) => (
-            <ScenarioChip
-              key={scenario}
-              label={scenario}
-              active={scenario === selection.scenario}
-              onSelect={() => setSelection((prev) => ({ ...prev, scenario }))}
-            />
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-full border border-border/60 px-4 py-1.5 text-xs font-semibold text-foreground hover:border-foreground"
+        >
+          Reset
+        </button>
       </div>
       <div className="grid gap-6 px-6 py-6 md:grid-cols-3">
         <FilterGroup
           label="Window"
-          options={timeRanges}
+          options={timeRangeOptions}
           active={selection.window}
-          onSelect={(option) => setSelection((prev) => ({ ...prev, window: option }))}
+          onSelect={setWindow}
         />
         <FilterGroup
           label="Region"
-          options={regions}
+          options={regionOptions}
           active={selection.region}
-          onSelect={(option) => setSelection((prev) => ({ ...prev, region: option }))}
+          onSelect={setRegion}
         />
         <FilterGroup
           label="Intent"
-          options={issues}
+          options={intentOptions}
           active={selection.intent}
-          onSelect={(option) => setSelection((prev) => ({ ...prev, intent: option }))}
+          onSelect={setIntent}
         />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/40 px-6 py-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-success" />
-          Streaming latest sample set
+          {activeLabel}
         </span>
         <div className="flex flex-wrap gap-2">
           <StatusBadge label="Now showing" value={summary} />
-          <StatusBadge label="Scenario" value={selection.scenario} />
-          <StatusBadge label="Mood" value={selection.scenario === "Playbook" ? "Celebratory" : "Confident"} />
+          <StatusBadge label="Source" value="Local sample" />
         </div>
       </div>
     </section>
@@ -104,22 +110,6 @@ function FilterGroup({
         ))}
       </div>
     </div>
-  );
-}
-
-function ScenarioChip({ label, active, onSelect }: { label: string; active?: boolean; onSelect: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={
-        active
-          ? "rounded-full bg-foreground/90 px-4 py-1.5 text-xs font-semibold text-surface"
-          : "rounded-full border border-border/60 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-      }
-    >
-      {label}
-    </button>
   );
 }
 

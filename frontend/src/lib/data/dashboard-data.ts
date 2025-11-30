@@ -1,16 +1,11 @@
-import { callsDataset } from "./calls-data";
 import type {
   DashboardKpi,
   InsightCard,
   IssueBreakdownEntry,
+  MockCallRecord,
   RegionPerformanceEntry,
   VolumePoint,
 } from "./types";
-
-const totalDuration = callsDataset.reduce((acc, call) => acc + call.durationSeconds, 0);
-const resolvedCalls = callsDataset.filter((call) => call.status === "resolved");
-const escalationRate =
-  (callsDataset.filter((call) => call.status === "escalated").length / callsDataset.length) * 100;
 
 function buildSparkline(seed: number, length = 12): number[] {
   return Array.from({ length }, (_, index) => {
@@ -20,52 +15,66 @@ function buildSparkline(seed: number, length = 12): number[] {
   });
 }
 
-export const dashboardKpis: DashboardKpi[] = [
-  {
-    label: "Total interactions",
-    value: callsDataset.length.toLocaleString(),
-    delta: 8.2,
-    trend: "up",
-    descriptor: "vs. previous 7 days",
-    category: "stability",
-    sparkline: buildSparkline(68),
-    goal: "+5%",
-  },
-  {
-    label: "Avg handle time",
-    value: `${Math.round(totalDuration / callsDataset.length / 60)}m`,
-    delta: -4.3,
-    trend: "down",
-    descriptor: "target 12m",
-    category: "efficiency",
-    sparkline: buildSparkline(14),
-    goal: "≤ 12m",
-  },
-  {
-    label: "Resolution rate",
-    value: `${((resolvedCalls.length / callsDataset.length) * 100).toFixed(1)}%`,
-    delta: 2.1,
-    trend: "up",
-    descriptor: "cases closed first touch",
-    category: "stability",
-    sparkline: buildSparkline(82),
-    goal: "≥ 90%",
-  },
-  {
-    label: "Escalation",
-    value: `${escalationRate.toFixed(1)}%`,
-    delta: 1.3,
-    trend: "down",
-    descriptor: "critical transfers",
-    category: "efficiency",
-    sparkline: buildSparkline(9),
-    goal: "< 8%",
-  },
-];
+export function buildDashboardKpis(calls: MockCallRecord[]): DashboardKpi[] {
+  const totalDuration = calls.reduce((acc, call) => acc + call.durationSeconds, 0);
+  const resolvedCalls = calls.filter((call) => call.status === "resolved");
+  const escalations = calls.filter((call) => call.status === "escalated");
+  const sampleSize = Math.max(1, calls.length);
 
-function buildVolumeSeries(): VolumePoint[] {
+  return [
+    {
+      label: "Total interactions",
+      value: calls.length.toLocaleString(),
+      delta: 8.2,
+      trend: "up",
+      descriptor: "vs. previous 7 days",
+      category: "stability",
+      sparkline: buildSparkline(68),
+      goal: "+5%",
+    },
+    {
+      label: "Avg handle time",
+      value: `${Math.round(totalDuration / sampleSize / 60)}m`,
+      delta: -4.3,
+      trend: "down",
+      descriptor: "target 12m",
+      category: "efficiency",
+      sparkline: buildSparkline(14),
+      goal: "≤ 12m",
+    },
+    {
+      label: "Resolution rate",
+      value: `${((resolvedCalls.length / sampleSize) * 100).toFixed(1)}%`,
+      delta: 2.1,
+      trend: "up",
+      descriptor: "cases closed first touch",
+      category: "stability",
+      sparkline: buildSparkline(82),
+      goal: "≥ 90%",
+    },
+    {
+      label: "Escalation",
+      value: `${((escalations.length / sampleSize) * 100).toFixed(1)}%`,
+      delta: 1.3,
+      trend: "down",
+      descriptor: "critical transfers",
+      category: "efficiency",
+      sparkline: buildSparkline(9),
+      goal: "< 8%",
+    },
+  ];
+}
+
+export function buildVolumeSeries(calls: MockCallRecord[]): VolumePoint[] {
+  if (!calls.length) {
+    const fallbackDate = new Date().toISOString().slice(0, 10);
+    return [
+      { date: fallbackDate, voice: 0, chat: 0, email: 0, total: 0, forecast: 0 },
+      { date: fallbackDate, voice: 0, chat: 0, email: 0, total: 0, forecast: 5 },
+    ];
+  }
   const seriesMap = new Map<string, VolumePoint>();
-  callsDataset.forEach((call) => {
+  calls.forEach((call) => {
     const dateKey = call.openedAt.slice(0, 10);
     const existing = seriesMap.get(dateKey) ?? {
       date: dateKey,
@@ -94,29 +103,26 @@ function buildVolumeSeries(): VolumePoint[] {
   });
 }
 
-export const callVolumeSeries = buildVolumeSeries();
-
-function buildIssueBreakdown(): IssueBreakdownEntry[] {
+export function buildIssueBreakdown(calls: MockCallRecord[]): IssueBreakdownEntry[] {
   const map = new Map<string, number>();
-  callsDataset.forEach((call) => {
+  calls.forEach((call) => {
     map.set(call.issue, (map.get(call.issue) ?? 0) + 1);
   });
+  const baseTotal = Math.max(1, calls.length);
   return Array.from(map.entries())
     .map(([issue, count], index) => ({
       issue,
       count,
-      percentage: parseFloat(((count / callsDataset.length) * 100).toFixed(1)),
+      percentage: parseFloat(((count / baseTotal) * 100).toFixed(1)),
       trend: (index % 3) * 1.5 - 1,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 }
 
-export const issueBreakdown = buildIssueBreakdown();
-
-function buildRegionPerformance(): RegionPerformanceEntry[] {
+export function buildRegionPerformance(calls: MockCallRecord[]): RegionPerformanceEntry[] {
   const map = new Map<string, RegionPerformanceEntry>();
-  callsDataset.forEach((call, index) => {
+  calls.forEach((call, index) => {
     const entry =
       map.get(call.region) ?? {
         region: call.region,
@@ -133,8 +139,6 @@ function buildRegionPerformance(): RegionPerformanceEntry[] {
   });
   return Array.from(map.values()).sort((a, b) => b.volume - a.volume);
 }
-
-export const regionPerformance = buildRegionPerformance();
 
 export const proactiveInsights: InsightCard[] = [
   {
@@ -156,5 +160,3 @@ export const proactiveInsights: InsightCard[] = [
     severity: "critical",
   },
 ];
-
-export const recentCalls = callsDataset.slice(0, 20);

@@ -179,7 +179,7 @@ curl http://localhost:8000/api/healthz
 ```powershell
 cd frontend
 pnpm install    # or: npm install
-pnpm dev --port 3000
+pnpm dev --port 3000  # or: npm run dev -- --port=3000
 ```
 Navigate to `http://localhost:3000/dashboard` to see local dashboards backed by the simulated AWS pipeline.
 
@@ -240,7 +240,7 @@ aws-serverless-support-analytics/
 - **Local AWS simulation** – Parquet + manifest files emulate S3/Glue outputs; switching to real AWS storage later is a config-only change.
 - **Typed FastAPI layer** – Routers for calls, agents, metrics, settings, health, and auth stub share Pydantic models across services.
 - **Next.js dashboards** – App Router layouts, KPI cards, charts (Nivo/Recharts), and TanStack Table explorer deliver modern UX.
-- **Employer-facing narrative layer** – Revamped hero, scenario filters, KPI runways, dual actual/forecast visuals, and severity-aware insights ensure the `/dashboard` route feels like a polished on-site demo even when running locally.
+- **Employer-facing narrative layer** – Revamped hero, shared mock filters, KPI runways, dual actual/forecast visuals, and severity-aware insights ensure the `/dashboard` route feels like a polished on-site demo even when running locally.
 - **Extensible design system** – Tailwind tokens, shadcn/ui primitives, and Radix-driven accessibility guidelines.
 - **Query-driven data layer** – TanStack Query hooks encapsulate caching, streaming, and optimistic updates tied to generated OpenAPI clients.
 - **Operational insights** – Settings page surfaces manifest details, manual refresh button, and ETL health checks.
@@ -251,7 +251,7 @@ aws-serverless-support-analytics/
 The November 2025 refresh turned the `/dashboard` route into a scripted story recruiters can walk through without touching AWS:
 
 - **Narrative hero** – `DashboardHero` now mixes a glassmorphism panel, CTA buttons, and a custom SVG SLA dial so you can talk through backlog, refresh cadence, and service targets in one glance.
-- **Scenario-aware filter dock** – `GlobalFilters` introduces "simulation lanes" (Migration Lab, Production, Playbook) plus status badges showing the manifest, timezone, and snapshot powering the demo.
+- **Unified filter dock** – `GlobalFilters` now shares a single window/region/intent store with the Calls page, slices the mock Parquet data in real time, and exposes clear "showing X of Y" badges so demo operators always know what the UI represents.
 - **Dual KPI runways** – KPIs are split into stability vs efficiency tracks. Each `KpiCard` includes category badges, goal chips, and sparkline gradients generated from the richer mock data.
 - **Actual vs forecast coverage** – `VolumeArea` renders actual interaction volumes with forecast overlays, per-channel callouts, and supporting stats so you can narrate mitigations around upcoming surges.
 - **Intent and region intelligence** – `CategoryBreakdown` adds trend badges + progress tiles and `RegionGrid` surfaces CSAT/SLA/queue progress bars per geo for an ops-grade view.

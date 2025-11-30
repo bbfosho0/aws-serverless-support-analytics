@@ -1,3 +1,6 @@
+"use client";
+
+import { useCallback } from "react";
 import type { ReactNode } from "react";
 
 import type { MockCallRecord } from "../../lib/data/types";
@@ -13,20 +16,67 @@ export function CallsTable({ data, caption }: CallsTableProps) {
   const avgHandle = Math.round(
     data.reduce((acc, call) => acc + call.durationSeconds, 0) / Math.max(1, data.length) / 60,
   );
+  const subtitle = data.length
+    ? `Showing ${data.length} call${data.length === 1 ? "" : "s"} from the current selection.`
+    : "No calls match the current selection.";
+
+  const handleDownload = useCallback(() => {
+    if (!data.length) return;
+    const headers = [
+      "caseId",
+      "region",
+      "issue",
+      "channel",
+      "priority",
+      "status",
+      "durationSeconds",
+      "firstResponseMinutes",
+      "csat",
+      "openedAt",
+    ];
+    const rows = data.map((call) =>
+      [
+        call.caseId,
+        call.region,
+        call.issue,
+        call.channel,
+        call.priority,
+        call.status,
+        call.durationSeconds,
+        call.firstResponseMinutes,
+        call.csat,
+        call.openedAt,
+      ]
+        .map((value) => `${value}`)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "calls-selection.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [data]);
 
   return (
-    <section className="rounded-[32px] border border-border/70 bg-surface/95 shadow-card">
+    <section id="transcripts" className="rounded-[32px] border border-border/70 bg-surface/95 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/50 px-6 py-5">
         <div>
           {caption && <p className="text-xs uppercase tracking-[0.4rem] text-muted-foreground">{caption}</p>}
-          <p className="text-sm text-muted-foreground">Synthetic transcript table for recruiters</p>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <StatusPill label="Resolved" value={`${resolved}/${data.length}`} />
           <StatusPill label="Urgent" value={urgent.toString()} />
           <StatusPill label="Avg AHT" value={`${avgHandle}m`} />
         </div>
-        <button className="rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground">
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={!data.length}
+          className="rounded-full border border-border/60 px-4 py-2 text-xs font-semibold text-foreground disabled:opacity-40"
+        >
           Download CSV
         </button>
       </div>
