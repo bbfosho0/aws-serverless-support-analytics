@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+import { AppShell } from "../../components/layout/app-shell";
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <section>
-      <header>
-        <h1 className="text-2xl font-semibold">Support Analytics Dashboard</h1>
-      </header>
-      <main>{children}</main>
-    </section>
+    <AppShell
+      title="Executive overview"
+      description="Live signal across calls, agents, and ETL health — ready for AWS handoff."
+    >
+      {children}
+    </AppShell>
   );
 }

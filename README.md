@@ -26,13 +26,15 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 
 1. **Generate sample Parquet + manifest assets (simulated Glue job)**
 
-  ```powershell
-  python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
-  ```
+   ```powershell
+   # run from the repo root after activating .venv
+   python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
+   ```
 
 1. **Run the FastAPI backend**
 
   ```powershell
+  .\.venv\Scripts\Activate.ps1
   cd backend
   uvicorn app.main:app --reload --port 8000
   ```
@@ -42,7 +44,7 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
   ```powershell
   cd ../frontend
   npm install
-  npm run dev -- --port 3000
+  npm run dev -- --port=3000   # "--" passes the flag to Next.js; replace with pnpm dev --port=3000 if you prefer pnpm
   ```
 
   Visit `http://localhost:3000/dashboard` (frontend) and `http://localhost:8000/api/healthz` (backend health) to confirm everything is running. You can swap `npm` for `pnpm` if desired.
@@ -76,7 +78,7 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 
 The solution pairs a typed FastAPI backend with a streaming-first Next.js frontend to simulate an AWS-native analytics workflow without cloud dependencies.
 
-```
+```text
 ┌────────────┐      ETL (Python)       ┌──────────────┐       REST + OpenAPI       ┌─────────────┐
 │ data/ raw  │ ──▶ generate_parquet ▶ │ Parquet +    │ ──▶ FastAPI Routers ──▶ TS │ Next.js App │
 │ CSV / JSON │      scripts/          │ manifest.json│      (calls, agents,       │ (Dashboards)│
@@ -86,6 +88,7 @@ The solution pairs a typed FastAPI backend with a streaming-first Next.js fronte
                                         ▼                     ▼          │ w/ generated clients
                                    Future AWS: S3 bucket + Glue catalog  │
 ```
+
 
 1. **Data flow** – `support_analytics.etl` normalizes contact-center data into `data/cleaned_calls.parquet` and `data/manifest.json`, emulating an AWS Glue ETL output stored in S3.
 2. **Backend** – FastAPI loads those artifacts via repositories (`parquet_repo.py`, `manifest_repo.py`), layers business logic in services (`calls.py`, `metrics.py`, `agents.py`), and exposes versioned REST endpoints plus OpenAPI metadata.
@@ -109,21 +112,32 @@ git clone https://github.com/bbfosho0/aws-serverless-support-analytics.git
 cd aws-serverless-support-analytics
 ```
 
-### 3. Install Python dependencies with uv
+### 3. Install Python dependencies with pip
 
 ```powershell
-uv venv --python 3.11
-.\.venv\Scripts\Activate.ps1
-uv pip install -r requirements.txt          # shared ETL + test deps
-uv pip install -r backend/requirements.txt   # FastAPI-specific deps
+# Windows (PowerShell)
+python -3.11 -m venv .venv
+\.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt          # shared ETL + test deps
+pip install -r backend/requirements.txt   # FastAPI-specific deps
 ```
-> Prefer `pip install -r ...` if you are not using `uv`.
+
+```bash
+# macOS / Linux
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r backend/requirements.txt
+```
 
 ### 4. Generate local ETL artifacts (simulated Glue job)
 
 ```powershell
 python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
 ```
+
 This placeholder logs the intended transformation and keeps folder wiring intact until real ETL logic lands.
 
 ### 5. Configure environment variables
@@ -155,6 +169,7 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 Verify the simulation:
+
 ```bash
 curl http://localhost:8000/api/healthz
 ```
@@ -179,7 +194,7 @@ Run this after any FastAPI schema change so the React hooks stay in sync.
 
 ## Project Structure
 
-```
+```text
 aws-serverless-support-analytics/
 ├── plan.md                      # Alignment checklist documenting the scaffold goals
 ├── FrontArc.md                 # Frontend architecture blueprint (authoritative UI guide)
@@ -210,15 +225,18 @@ aws-serverless-support-analytics/
 ├── tests/                      # Pytest suites for ETL helpers (support_analytics/*)
 └── README.md
 ```
+
 (See [FrontArc.md](FrontArc.md) and [BackArc.md](BackArc.md) for deeper per-directory notes.)
 
 ## Placeholder Scaffolding Strategy
+
 - **Descriptive Python stubs** – `support_analytics/`, `backend/app/services/*`, and `scripts/generate_parquet.py` log their intent so FastAPI contracts can be developed before real ETL logic exists.
 - **Frontend skeletons** – Every route, feature module, and provider from `FrontArc.md` has a matching component that renders placeholder copy, keeping routing/API imports stable for future work.
 - **Testing hooks** – Pytest, Vitest, and Playwright directories already exist with smoke tests so CI wiring can begin immediately.
 - **Documentation parity** – `plan.md` plus this README ensure the documented structure and the filesystem can stay in sync as real implementations replace the placeholders.
 
 ## Key Features
+
 - **Local AWS simulation** – Parquet + manifest files emulate S3/Glue outputs; switching to real AWS storage later is a config-only change.
 - **Typed FastAPI layer** – Routers for calls, agents, metrics, settings, health, and auth stub share Pydantic models across services.
 - **Next.js dashboards** – App Router layouts, KPI cards, charts (Nivo/Recharts), and TanStack Table explorer deliver modern UX.
@@ -230,6 +248,7 @@ aws-serverless-support-analytics/
 ## Usage & API Examples
 
 ### 1. Regenerate ETL artifacts & refresh manifest
+
 ```bash
 python scripts/generate_parquet.py --input data/sample_calls.json --output data/cleaned_calls.parquet
 curl -X POST http://localhost:8000/api/settings/refresh \
@@ -237,12 +256,14 @@ curl -X POST http://localhost:8000/api/settings/refresh \
 ```
 
 ### 2. Start backend + frontend together (PowerShell)
+
 ```powershell
 Start-Job { .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload }
 Start-Job { cd frontend; pnpm dev }
 ```
 
 ### 3. Generate OpenAPI clients for the frontend
+
 ```bash
 make openapi           # backend exports openapi.json
 cd frontend
@@ -250,6 +271,7 @@ pnpm api:generate      # regenerates src/lib/api/generated
 ```
 
 ### 4. REST API reference (local simulation)
+
 | Endpoint | Method | Description | Sample |
 | --- | --- | --- | --- |
 | `/api/calls` | GET | Paginated, filterable call records from Parquet | `curl "http://localhost:8000/api/calls?page=1&per_page=50&region=NA"` |
@@ -260,6 +282,7 @@ pnpm api:generate      # regenerates src/lib/api/generated
 | `/api/auth/sign-in` | POST | Auth stub issuing JWTs for local dev | `curl -X POST http://localhost:8000/api/auth/sign-in -d '{"username":"admin","password":"dev"}' -H "Content-Type: application/json"` |
 
 **Sample `/api/calls` response**
+
 ```json
 {
   "data": [
@@ -290,6 +313,7 @@ pnpm api:generate      # regenerates src/lib/api/generated
 ```
 
 **Sample `/api/settings/manifest` response**
+
 ```json
 {
   "data": {
@@ -302,6 +326,7 @@ pnpm api:generate      # regenerates src/lib/api/generated
 ```
 
 ### 5. Frontend TanStack Query usage example
+
 ```ts
 // src/lib/api/hooks.ts
 import { useQuery } from '@tanstack/react-query';
@@ -320,12 +345,14 @@ export function useCalls(filters: CallsFilters) {
 }
 ```
 Then inside `src/app/calls/page.tsx`:
+
 ```tsx
 const { data, isLoading } = useCalls(currentFilters);
 ```
 This pattern ensures the UI always reflects the latest FastAPI schema, with build-time type safety provided by the generated client.
 
 ## Development Workflow
+
 1. **Sync ETL data** – run `scripts/generate_parquet.py` whenever sample data changes.
 2. **Backend first** – modify FastAPI router/service/model, run `uvicorn` + `pytest`, regenerate `openapi.json`.
 3. **Update clients** – `pnpm api:generate` to refresh TypeScript clients, then run `pnpm lint` to catch mismatches.
@@ -333,8 +360,8 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
 5. **Concurrent dev** – use two terminals or `docker-compose.dev.yml` to run FastAPI and Next.js simultaneously.
 6. **Branching** – follow feature branches off `local-first-approach` (or `main`), enforce PR checklists: lint, tests, OpenAPI regen proof.
 7. **Release prep** – tag once both stack halves are green; include manifest hash + ETL timestamp in release notes for traceability.
-
 ## Coding Standards
+
 - **Frontend**
   - TypeScript strict mode, React Server Components where possible, `use client` only when necessary.
   - Tailwind classes ordered via Prettier plugin; design tokens defined in `tailwind.config.ts` and `themes.css`.
@@ -342,16 +369,16 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
   - UI state managed via Zustand slices; avoid prop drilling for core layout concerns.
 - **Backend**
   - Pydantic models live in `app/models`, request/response schemas in `app/schemas`, routers thin, services contain business logic, repositories handle IO.
-  - Enforce ` ConfigDict(extra='forbid')` to reject unknown payload fields; prefer Polars lazy queries for heavy filtering.
+  - Enforce `ConfigDict(extra='forbid')` to reject unknown payload fields; prefer Polars lazy queries for heavy filtering.
   - Logging is structured; every endpoint returns the standard `{ data, meta, links }` envelope or `{ error: { ... } }` on failure.
   - Run `ruff check`, `ruff format`, and `mypy` before committing.
-
 ## Testing
+
 - **Backend** – Pytest suites across unit (services, repositories), integration (FastAPI TestClient), contract tests (OpenAPI diff), and optional performance smoke tests (<250 ms P95 for `/api/calls`).
 - **Frontend** – Vitest + React Testing Library for components, Playwright E2E covering dashboard flows, Storybook visual regression (Chromatic) for KPI cards/charts.
 - **Shared contracts** – CI verifies that `openapi.json` was regenerated when schema changes occur and that `src/lib/api/generated` is current.
-
 ## Contributing
+
 1. File an issue or start a discussion describing the feature/fix and reference the relevant blueprint sections.
 2. Create a branch (`feature/<short-desc>`), run ETL + backend + frontend locally, and keep OpenAPI + generated clients in sync.
 3. Update documentation if your change alters architecture layers, endpoints, or UI flows.
@@ -360,6 +387,6 @@ This pattern ensures the UI always reflects the latest FastAPI schema, with buil
    - `pnpm lint`, `pnpm test`, `pnpm test:e2e` (frontend, as applicable)
    - Evidence that `openapi.json` + generated clients were regenerated (commit diff)
 5. Address review feedback promptly; keep commits focused.
-
 ## License
+
 TBD – add license text or SPDX identifier when finalized.
