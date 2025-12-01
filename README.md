@@ -10,53 +10,6 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 
 > Architectural details originate from [FrontArc.md](FrontArc.md) (Next.js blueprint) and [BackArc.md](BackArc.md) (FastAPI blueprint). This README focuses on day-to-day development aligned with those plans.
 
-## Quick Start (pip + npm)
-
-1. **Clone the repo**
-
-  ```powershell
-  git clone https://github.com/bbfosho0/aws-serverless-support-analytics.git
-  cd aws-serverless-support-analytics
-  ```
-
-1. **Create & activate a Python virtual environment, then install backend deps with `pip`**
-
-  ```powershell
-  winget install -e --id Python.Python.3.11
-  py -3.11 -m venv .venv   # use "python -m venv .venv" if your default Python is already 3.11
-  .\.venv\Scripts\Activate.ps1
-  pip install --upgrade pip
-  pip install -r requirements.txt
-  pip install -r backend/requirements.txt
-  ```
-
-1. **Generate sample Parquet + manifest assets (simulated Glue job)**
-
-   ```powershell
-   # run from the repo root after activating .venv
-   python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
-   ```
-
-1. **Run the FastAPI backend**
-
-  ```powershell
-  .\.venv\Scripts\Activate.ps1
-   uvicorn backend.app.main:app --reload --port 8000
-  ```
-
-  Run this from the repository root so the `support_analytics` package stays on `PYTHONPATH`; no `cd backend` step is required.
-
-1. **Install frontend dependencies with `npm` and start Next.js**
-
-  ```powershell
-   cd frontend
-  npm install
-  npm run dev -- --port=3000   # "--" passes the flag to Next.js when relaying custom args
-  ```
-
-  Visit `http://localhost:3000/dashboard` (frontend) and `http://localhost:8000/api/healthz` (backend health) to confirm everything is running. If you rely on another package manager, adapt the commands accordingly, but all examples below assume `npm`.
-
-
 ## Table of Contents
 
 - [Technology Stack](#technology-stack)
@@ -84,26 +37,42 @@ _A local-first analytics workbench that mirrors an AWS S3 + Glue + FastAPI + Nex
 
 ## Architecture
 
-The solution pairs a typed FastAPI backend with a streaming-first Next.js frontend to simulate an AWS-native analytics workflow without cloud dependencies.
+The FastAPI + Next.js pairing mirrors the eventual AWS lakehouse by piping raw data through ETL helpers, typed repositories, and generated clients.
 
 ```text
-┌────────────┐      ETL (Python)       ┌──────────────┐       REST + OpenAPI       ┌─────────────┐
-│ data/ raw  │ ──▶ generate_parquet ▶ │ Parquet +    │ ──▶ FastAPI Routers ──▶ TS │ Next.js App │
-│ CSV / JSON │      scripts/          │ manifest.json│      (calls, agents,       │ (Dashboards)│
-└────────────┘                         └──────────────┘      metrics, settings)     └─────────────┘
-                                        ▲                     │          ▲
-                                        │ Pydantic models     │          │ TanStack Query hooks
-                                        ▼                     ▼          │ w/ generated clients
-                                   Future AWS: S3 bucket + Glue catalog  │
++----------------------+       +----------------------------+       +-----------------------------+       +---------------------------+
+| data/raw CSV & JSON  | ----> | scripts/generate_parquet + | ----> | data/cleaned_calls.parquet  | ----> | FastAPI routers (calls,   |
+| (local or future S3) |       | support_analytics.etl      |       | data/manifest.json          |       | agents, metrics, settings)|
++----------------------+       +----------------------------+       +-----------------------------+       +---------------------------+
+        |                                  |                                   |                                    |
+        | future AWS S3 + Glue catalog     | repository + service layer        | Pydantic schemas + OpenAPI         | TanStack Query hooks +
+        v                                  v                                   v                                    v
+  AWS lakehouse bucket           IO adapters + business logic       Typed envelopes & contracts           Next.js dashboards (App Router)
 ```
 
-
-1. **Data flow** – `support_analytics.etl` normalizes contact-center data into `data/cleaned_calls.parquet` and `data/manifest.json`, emulating an AWS Glue ETL output stored in S3.
-2. **Backend** – FastAPI loads those artifacts via repositories (`parquet_repo.py`, `manifest_repo.py`), layers business logic in services (`calls.py`, `metrics.py`, `agents.py`), and exposes versioned REST endpoints plus OpenAPI metadata.
-3. **Frontend** – Next.js App Router renders dashboards using TanStack Query hooks that call OpenAPI-generated clients (`src/lib/api/generated`). Tailwind + shadcn/ui supply the design system, and Zustand controls local UI state.
-4. **Future S3/Glue** – Switching the backend to AWS is a config flip (`DATA_SOURCE=s3`), keeping the frontend unchanged thanks to strong typing and consistent routes.
+1. **Data flow** – `scripts/generate_parquet.py` and `support_analytics.etl` turn CSV/JSON samples into the same Parquet + manifest combo a Glue crawler would create in S3.
+2. **Backend services** – Repositories stream those artifacts via Polars/Pandas, services apply business logic, and routers expose consistent `{ data, meta, links }` responses plus OpenAPI metadata.
+3. **Frontend consumption** – `openapi-typescript` generates clients consumed by TanStack Query hooks, while Tailwind + shadcn/ui render the dashboards described in `FrontArc.md`.
+4. **AWS readiness** – Pointing `DATA_SOURCE` at S3 swaps the storage layer without touching the React code because the contracts and query hooks stay identical.
 
 ## Getting Started
+
+### TL;DR bootstrap (PowerShell)
+
+```powershell
+git clone https://github.com/bbfosho0/aws-serverless-support-analytics.git
+cd aws-serverless-support-analytics
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt -r backend/requirements.txt
+python scripts/generate_parquet.py --input data/sample_calls.json --agents data/agents.csv --output data/cleaned_calls.parquet
+uvicorn backend.app.main:app --reload --port 8000   # run from repo root
+cd frontend
+npm install
+npm run dev -- --port=3000
+```
+
+Once both servers are running, visit `http://localhost:3000/dashboard` and `http://localhost:8000/api/healthz` to verify the simulation.
 
 ### 1. Prerequisites
 
@@ -209,7 +178,6 @@ Run this after any FastAPI schema change so the React hooks stay in sync.
 
 ```text
 aws-serverless-support-analytics/
-├── plan.md                      # Alignment checklist documenting the scaffold goals
 ├── FrontArc.md                 # Frontend architecture blueprint (authoritative UI guide)
 ├── BackArc.md                  # Backend architecture blueprint (authoritative API guide)
 ├── data/                       # Local-first "S3" artifacts (CSV sources, manifest, sample JSON)
@@ -246,7 +214,7 @@ aws-serverless-support-analytics/
 - **Descriptive Python stubs** – `support_analytics/`, `backend/app/services/*`, and `scripts/generate_parquet.py` log their intent so FastAPI contracts can be developed before real ETL logic exists.
 - **Frontend skeletons** – Every route, feature module, and provider from `FrontArc.md` has a matching component that renders placeholder copy, keeping routing/API imports stable for future work.
 - **Testing hooks** – Pytest, Vitest, and Playwright directories already exist with smoke tests so CI wiring can begin immediately.
-- **Documentation parity** – `plan.md` plus this README ensure the documented structure and the filesystem can stay in sync as real implementations replace the placeholders.
+- **Documentation parity** – This README plus `FrontArc.md`/`BackArc.md` keep the documented structure and filesystem aligned while real implementations replace the placeholders.
 
 ## Key Features
 
@@ -291,7 +259,7 @@ Start-Job { cd frontend; npm run dev -- --port=3000 }
 ### 3. Generate OpenAPI clients for the frontend
 
 ```powershell
-# Ensure the FastAPI server is running locally (see Quick Start step 4/6)
+# Ensure the FastAPI server is running locally (see Getting Started step 6)
 cd frontend
 npm run api:generate      # regenerates src/lib/api/generated against http://localhost:8000/openapi.json
 ```
@@ -395,41 +363,24 @@ The GitHub Pages demo is generated from the same Next.js project—no manual HTM
 
 1. **Build locally for Pages**
 
-  ```powershell
-  cd frontend
-  npm run build   # .env.production already sets GITHUB_PAGES=true
-  ```
+```powershell
+cd frontend
+npm run build   # .env.production already sets GITHUB_PAGES=true
+```
 
-  The export lands in `frontend/out/` with the repo-aware `basePath`/`assetPrefix`, pre-rendered call detail routes, and unoptimized images.
+The export lands in `frontend/out/` with the repo-aware `basePath`/`assetPrefix`, pre-rendered call detail routes, and unoptimized images.
 
 1. **Publish to `gh-pages`**
 
-  ```powershell
-  # from repo root
-  git worktree add ../aws-serverless-support-analytics-gh-pages gh-pages
-  cd ../aws-serverless-support-analytics-gh-pages
-  git rm -rf .
-  robocopy ..\aws-serverless-support-analytics\frontend\out . /MIR
-  copy nul .nojekyll
-  git add .
-  git commit -m "Refresh static export"
-  git push origin gh-pages
-  git worktree remove ../aws-serverless-support-analytics-gh-pages
-  ```
+```powershell
+python scripts/publish_gh_pages.py --message "Refresh static export"
+```
 
-  (Use an equivalent `cp`/`rsync` flow on macOS/Linux.)
+The helper script adds a temporary worktree, copies `frontend/out`, writes `.nojekyll`, commits, pushes, and removes the worktree. Pass `--skip-push` if you want to inspect the commit before pushing.
 
-1. **GitHub Pages settings**
+1. **GitHub Pages settings** – In GitHub → _Settings_ → _Pages_, choose **Deploy from a branch** and point it at `gh-pages` / root.
 
-  - GitHub → _Settings_ → _Pages_
-  - **Source**: Deploy from a branch
-  - **Branch**: `gh-pages` / **Folder**: `/` (root)
-
-1. **Result**
-
-    - Pages serves everything under `<https://<username>.github.io/aws-serverless-support-analytics/>`
-    - The `_next` assets work because of `.nojekyll`
-    - Any time `main` updates, repeat the build + publish steps for a fresh static demo
+1. **Result** – Pages serves everything under `<https://<username>.github.io/aws-serverless-support-analytics/>`, `_next` assets remain intact because of `.nojekyll`, and repeating the build + script combo refreshes the static demo whenever `main` changes.
 
 ## Coding Standards
 
