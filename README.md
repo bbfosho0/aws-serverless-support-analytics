@@ -248,6 +248,7 @@ The November 2025 refresh turned the `/dashboard` route into a scripted story re
 - **Actual vs forecast coverage** – `VolumeArea` renders actual interaction volumes with forecast overlays, per-channel callouts, and supporting stats so you can narrate mitigations around upcoming surges.
 - **Intent and region intelligence** – `CategoryBreakdown` adds trend badges + progress tiles and `RegionGrid` surfaces CSAT/SLA/queue progress bars per geo for an ops-grade view.
 - **Insight stream + transcripts** – Severity-colored `InsightBoard` cards provide talking points while the revamped `CallsTable` adds summary pills, channel badges, SLA indicators, and CSV export affordances.
+- **Briefing controls (placeholder)** – The "Export snapshot" and "Schedule briefing" buttons in the top-right header are intentional UI stubs that currently do not trigger any workflows; they illustrate the handoff experience that would eventually export KPIs or book a stakeholder review.
 
 These upgrades all run locally against `data/sample_calls.json` → `data/cleaned_calls.parquet`, keeping the portfolio-friendly visuals tightly coupled with the simulated Glue outputs.
 
