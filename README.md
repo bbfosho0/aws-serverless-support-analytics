@@ -138,6 +138,17 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 NEXT_PUBLIC_DEFAULT_TIME_RANGE=30d
 ```
 
+The frontend also ships with `frontend/.env.production`, which only sets `GITHUB_PAGES=true`. Next.js loads that file during `npm run build` so `next.config.mjs` can flip `basePath`/`assetPrefix` for GitHub Pages without you having to touch `.env.local`. Keep `.env.local` pointed at your FastAPI backend for day-to-day work; when you need the static demo to call the baked-in `/mock-api` responses, override the `NEXT_PUBLIC_*` variables inline:
+
+```powershell
+# PowerShell
+$env:NEXT_PUBLIC_API_BASE_URL="/mock-api"
+$env:NEXT_PUBLIC_SITE_BASE="/aws-serverless-support-analytics"
+npm run build
+```
+
+These overrides take precedence over `.env.local` for that shell session only, so your dev defaults stay intact.
+
 ### 6. Start the FastAPI backend
 
 ```powershell
@@ -365,10 +376,15 @@ The GitHub Pages demo is generated from the same Next.js project—no manual HTM
 
 ```powershell
 cd frontend
+# keep .env.local pointing at FastAPI for dev; override for the static export run
+$env:NEXT_PUBLIC_API_BASE_URL="/mock-api"
+$env:NEXT_PUBLIC_SITE_BASE="/aws-serverless-support-analytics"
 npm run build   # .env.production already sets GITHUB_PAGES=true
 ```
 
 The export lands in `frontend/out/` with the repo-aware `basePath`/`assetPrefix`, pre-rendered call detail routes, and unoptimized images.
+
+> If you forget to override the variables and build with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`, the static bundle still publishes, but the live GitHub Pages site will try to call your local FastAPI server and every fetch will fail with CORS/ENOTFOUND errors. Just rebuild with the `/mock-api` overrides and rerun the publish script to fix it.
 
 1. **Publish to `gh-pages`**
 
